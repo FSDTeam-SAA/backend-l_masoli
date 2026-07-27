@@ -1,0 +1,112 @@
+export const ROLES = {
+  USER: 'user',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
+};
+
+export const ROLE_VALUES = Object.values(ROLES);
+
+export const ADMIN_ROLES = [ROLES.ADMIN, ROLES.SUPER_ADMIN];
+
+export const USER_STATUS = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive'
+};
+
+export const USER_STATUS_VALUES = Object.values(USER_STATUS);
+
+export const GOAL_STATUS = {
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  ARCHIVED: 'archived'
+};
+
+export const GOAL_STATUS_VALUES = Object.values(GOAL_STATUS);
+
+export const OTP_TYPE = {
+  EMAIL_VERIFICATION: 'email_verification',
+  PASSWORD_RESET: 'password_reset'
+};
+
+export const OTP_TYPE_VALUES = Object.values(OTP_TYPE);
+
+export const NOTIFICATION_TYPE = {
+  GOAL_REMINDER: 'goal_reminder',
+  MILESTONE_REMINDER: 'milestone_reminder',
+  DAILY_INSPIRATION: 'daily_inspiration',
+  GOAL_COMPLETED: 'goal_completed',
+  BADGE_EARNED: 'badge_earned',
+  ANNOUNCEMENT: 'announcement',
+  NEW_USER: 'new_user',
+  SYSTEM: 'system'
+};
+
+export const NOTIFICATION_TYPE_VALUES = Object.values(NOTIFICATION_TYPE);
+
+export const NOTIFICATION_AUDIENCE = {
+  USER: 'user',
+  ADMIN: 'admin'
+};
+
+export const NOTIFICATION_AUDIENCE_VALUES = Object.values(NOTIFICATION_AUDIENCE);
+
+export const ACTIVITY_TYPE = {
+  LOGIN: 'login',
+  GOAL_CREATED: 'goal_created',
+  GOAL_COMPLETED: 'goal_completed',
+  MILESTONE_COMPLETED: 'milestone_completed',
+  BOARD_CREATED: 'board_created',
+  IMAGE_UPLOADED: 'image_uploaded'
+};
+
+export const ACTIVITY_TYPE_VALUES = Object.values(ACTIVITY_TYPE);
+
+export const COLLAGE_LAYOUTS = [
+  { key: 'grid-2', name: 'Two Column Grid', columns: 2, maxImages: 12 },
+  { key: 'grid-3', name: 'Three Column Grid', columns: 3, maxImages: 18 },
+  { key: 'mosaic', name: 'Mosaic', columns: 3, maxImages: 12 },
+  { key: 'stack', name: 'Vertical Stack', columns: 1, maxImages: 8 },
+  { key: 'hero', name: 'Hero + Thumbnails', columns: 3, maxImages: 10 }
+];
+
+export const COLLAGE_LAYOUT_KEYS = COLLAGE_LAYOUTS.map((layout) => layout.key);
+
+export const BADGE_METRIC = {
+  GOALS_CREATED: 'goals_created',
+  GOALS_COMPLETED: 'goals_completed',
+  MILESTONES_COMPLETED: 'milestones_completed',
+  BOARDS_CREATED: 'boards_created',
+  IMAGES_UPLOADED: 'images_uploaded',
+  STREAK_CURRENT: 'streak_current',
+  AREAS_COVERED: 'areas_covered'
+};
+
+export const BADGE_METRIC_VALUES = Object.values(BADGE_METRIC);
+
+export const PAGE_SLUG = {
+  ABOUT: 'about',
+  PRIVACY_POLICY: 'privacy-policy',
+  TERMS: 'terms'
+};
+
+export const PAGE_SLUG_VALUES = Object.values(PAGE_SLUG);
+
+export const DEVICE_PLATFORM_VALUES = ['android', 'ios', 'web'];
+
+export const CHART_RANGE = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly'
+};
+
+export const CHART_RANGE_VALUES = Object.values(CHART_RANGE);
+
+export const CLOUDINARY_FOLDERS = {
+  AVATARS: 'avatars',
+  COVER_MOODS: 'cover-moods',
+  BOARDS: 'boards'
+};
+
+export const ACTIVE_USER_WINDOW_DAYS = 30;
+
+export const MAX_BOARD_IMAGES_PER_UPLOAD = 10;
