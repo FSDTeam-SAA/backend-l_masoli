@@ -1,0 +1,4877 @@
+{
+  "info": {
+    "_postman_id": "my-dream-board-api-collection",
+    "name": "My Dream Board API",
+    "description": "Complete API collection for the My Dream Board mobile app and admin dashboard.\n\n## Getting started\n1. Import `My-Dream-Board.postman_environment.json` and select it.\n2. Run **Auth > Register** then **Auth > Verify Email** (the OTP is printed in the server console in development).\n3. Or run **Auth > Login** with an existing account. Tokens are saved to the environment automatically.\n4. Run **Admin > Login as Admin** to populate `{{adminToken}}` for every admin folder.\n\nEvery request except the public ones inherits bearer auth from `{{accessToken}}`. Admin requests override it with `{{adminToken}}`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "_postman_id": "req-3",
+      "description": "Service liveness endpoints. No auth required.",
+      "item": [
+        {
+          "name": "Root",
+          "_postman_id": "req-1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "API banner.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health Check",
+          "_postman_id": "req-2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/../health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "..",
+                "health"
+              ]
+            },
+            "description": "Uptime and timestamp.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "_postman_id": "req-15",
+      "description": "Sign Up, Sign In, Forgot Password, Enter OTP and Reset Password screens.\n\nOTP policy: 6 digits, 5 minute expiry, 45 second resend cooldown, 5 verify attempts. Every OTP response returns `resendAfter` so the client countdown is server-authoritative.",
+      "item": [
+        {
+          "name": "Register",
+          "_postman_id": "req-4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Sign Up screen. Creates an unverified account and emails a 6 digit OTP. Returns `{ email, expiresIn, resendAfter }` and NO tokens - the client should route to the Enter OTP screen.\n\nAccepts either `userName` or `firstName`/`lastName`; the other form is derived automatically.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"Aria Bennett\",\n  \"email\": \"aria.bennett@example.com\",\n  \"phone\": \"+15551234567\",\n  \"password\": \"Passw0rd!\",\n  \"confirmPassword\": \"Passw0rd!\",\n  \"timezone\": \"Asia/Dhaka\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Email",
+          "_postman_id": "req-5",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email"
+              ]
+            },
+            "description": "Enter OTP screen (signup flow). On success returns the user plus access and refresh tokens, which are saved to the environment.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aria.bennett@example.com\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.environment.set('accessToken', res.data.accessToken);",
+                  "  pm.environment.set('refreshToken', res.data.refreshToken);",
+                  "  if (res.data.user) pm.environment.set('userId', res.data.user._id);",
+                  "  pm.test('tokens saved', function () { pm.expect(res.data.accessToken).to.be.a('string'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "_postman_id": "req-6",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Sign In screen. Saves `accessToken` and `refreshToken` to the environment.\n\nIf the account is unverified the API responds 403 with `data.needsVerification = true` and re-sends the OTP, so the client can route to the Enter OTP screen.\n\nOptionally pass `deviceToken` and `platform` to register for push in the same call.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aria.bennett@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"deviceToken\": \"\",\n  \"platform\": \"android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.environment.set('accessToken', res.data.accessToken);",
+                  "  pm.environment.set('refreshToken', res.data.refreshToken);",
+                  "  if (res.data.user) pm.environment.set('userId', res.data.user._id);",
+                  "  pm.test('tokens saved', function () { pm.expect(res.data.accessToken).to.be.a('string'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "_postman_id": "req-7",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "Silent refresh with rotation - the old refresh token is revoked.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.environment.set('accessToken', res.data.accessToken);",
+                  "  pm.environment.set('refreshToken', res.data.refreshToken);",
+                  "  if (res.data.user) pm.environment.set('userId', res.data.user._id);",
+                  "  pm.test('tokens saved', function () { pm.expect(res.data.accessToken).to.be.a('string'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "_postman_id": "req-8",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Forgot Password screen. Always returns 200 regardless of whether the email exists (anti account-enumeration).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aria.bennett@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP",
+          "_postman_id": "req-9",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/resend-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "resend-otp"
+              ]
+            },
+            "description": "RESEND OTP button. Returns 429 with the remaining seconds if called inside the 45 second cooldown.\n\n`type` is `email_verification` or `password_reset`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aria.bennett@example.com\",\n  \"type\": \"password_reset\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "_postman_id": "req-10",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Enter OTP screen (reset flow). Returns a single-use, short-lived `resetToken` saved to the environment.\n\nIf `type` is `email_verification` this behaves like Verify Email and returns tokens instead.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aria.bennett@example.com\",\n  \"otp\": \"123456\",\n  \"type\": \"password_reset\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.resetToken; if (v) pm.environment.set('resetToken', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset Password",
+          "_postman_id": "req-11",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Reset New Password screen. Revokes every existing session on success.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"NewPassw0rd!\",\n  \"confirmPassword\": \"NewPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password",
+          "_postman_id": "req-12",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "Settings > Change Password, and Admin Settings > Change Password. Revokes every other session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Passw0rd!\",\n  \"newPassword\": \"NewPassw0rd!\",\n  \"confirmPassword\": \"NewPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "_postman_id": "req-13",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Settings > Log Out. Revokes the supplied refresh token and unregisters the device token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"deviceToken\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout All Devices",
+          "_postman_id": "req-14",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
+            },
+            "description": "Revokes every session and device token for the current user."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "_postman_id": "req-23",
+      "description": "Profile screen and Admin Settings > Personal Information.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "_postman_id": "req-16",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "Profile screen header and Admin Settings > Personal Information form."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update My Profile",
+          "_postman_id": "req-17",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "Edit profile. Send `userName` from mobile, or `firstName`/`lastName` from the admin dashboard - both stay in sync.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Aria\",\n  \"lastName\": \"Bennett\",\n  \"phone\": \"+15551234567\",\n  \"bio\": \"Building my design studio.\",\n  \"dateOfBirth\": \"1996-04-12\",\n  \"timezone\": \"Asia/Dhaka\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Avatar",
+          "_postman_id": "req-18",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "avatar"
+              ]
+            },
+            "description": "Multipart upload. Replaces and deletes the previous Cloudinary asset.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "description": "PNG, JPG, JPEG or WEBP. Max 10MB.",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Avatar",
+          "_postman_id": "req-19",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "avatar"
+              ]
+            },
+            "description": "Clears the avatar and deletes the Cloudinary asset."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Stats",
+          "_postman_id": "req-20",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "stats"
+              ]
+            },
+            "description": "Profile stat tiles: Goals, Completed, Boards, plus milestone counts, badge count and `avgCompletion`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Completed Goals",
+          "_postman_id": "req-21",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/completed-goals?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "completed-goals"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Profile > Completed goals list. Returns an empty array with the \"No completed goals yet\" message when there are none."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete My Account",
+          "_postman_id": "req-22",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "Soft-deletes the account and revokes all sessions. Requires the current password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Passw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Home",
+      "_postman_id": "req-27",
+      "description": "Home screen. `GET /home` returns everything the screen needs in one call.",
+      "item": [
+        {
+          "name": "Get Home",
+          "_postman_id": "req-24",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home"
+              ]
+            },
+            "description": "Returns:\n- `user` with a timezone-aware `greeting` (\"Good Morning\")\n- `motivation` - the Today's motivation quote\n- `dreamProgress` - overall percent ring, subtitle, active and completed goal counts\n- `upcomingMilestones` - the first 3, each with `dueLabel` (\"In 3 days\") alongside the raw ISO date"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "More Inspiration",
+          "_postman_id": "req-25",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/home/motivation?exclude=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home",
+                "motivation"
+              ],
+              "query": [
+                {
+                  "key": "exclude",
+                  "value": "",
+                  "description": "Optional quote id to avoid repeating the one on screen"
+                }
+              ]
+            },
+            "description": "The \"More inspiration ->\" button. Samples a different active quote."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "See All Upcoming Milestones",
+          "_postman_id": "req-26",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/home/upcoming-milestones?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home",
+                "upcoming-milestones"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "The \"See all\" link on the Upcoming milestones card. Paginated, sorted by due date."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Goals",
+      "_postman_id": "req-37",
+      "description": "Goals list, New goal and Goal detail screens.",
+      "item": [
+        {
+          "name": "List Goals",
+          "_postman_id": "req-28",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?searchTerm=&areaOfLife=&priority=&status=all&sortBy=createdAt&sortOrder=desc&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "",
+                  "description": "Matches title and description"
+                },
+                {
+                  "key": "areaOfLife",
+                  "value": "",
+                  "description": "Area of life id - the filter chips"
+                },
+                {
+                  "key": "priority",
+                  "value": "",
+                  "description": "Priority id"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "active | completed | archived | all"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Goals list screen. `data.summary.headline` is the \"5 dreams in motion\" subtitle. Each goal carries `progress`, `milestoneSummary` (\"1/2 milestones\"), `dueLabel` and the populated area and priority chips."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.goals && res.data.goals[0] && res.data.goals[0]._id; if (v) pm.environment.set('goalId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Goal",
+          "_postman_id": "req-29",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals"
+              ]
+            },
+            "description": "New goal screen. `areaOfLife` and `priority` are ids from `GET /content/areas` and `GET /content/priorities`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Launch my design studio\",\n  \"description\": \"\",\n  \"areaOfLife\": \"{{areaOfLifeId}}\",\n  \"priority\": \"{{priorityId}}\",\n  \"targetDate\": \"2026-12-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data._id; if (v) pm.environment.set('goalId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Goal Detail",
+          "_postman_id": "req-30",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}"
+              ]
+            },
+            "description": "Goal detail screen. Includes `milestoneProgressLabel` (\"2 of 4 milestones complete\") and the full milestone list, each with `dueLabel` or \"Completed\"."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Goal",
+          "_postman_id": "req-31",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}"
+              ]
+            },
+            "description": "The \"...\" menu > Edit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Launch my design studio\",\n  \"priority\": \"{{priorityId}}\",\n  \"targetDate\": \"2026-12-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Goal",
+          "_postman_id": "req-32",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}"
+              ]
+            },
+            "description": "The \"...\" menu > Delete. Soft-deletes the goal and cascades to its milestones."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete / Reopen Goal",
+          "_postman_id": "req-33",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}",
+                "complete"
+              ]
+            },
+            "description": "Manual completion. Required for goals with no milestones, which can never auto-complete.\n\nRejected with 400 if the goal has milestones that are not all done - completion is milestone-driven in that case.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isCompleted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Archive / Restore Goal",
+          "_postman_id": "req-34",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}",
+                "archive"
+              ]
+            },
+            "description": "Archived goals are excluded from overall progress and the avg completion figure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isArchived\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Goal Milestones",
+          "_postman_id": "req-35",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/milestones?status=all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}",
+                "milestones"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "all | pending | completed"
+                }
+              ]
+            },
+            "description": "The Milestones section of the Goal detail screen."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('milestoneId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Milestone to Goal",
+          "_postman_id": "req-36",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/milestones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goalId}}",
+                "milestones"
+              ]
+            },
+            "description": "New milestone screen (\"For <goal title>\" / \"When will you do it?\"). Returns the milestone plus the recalculated goal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Register studio name\",\n  \"dueDate\": \"2026-08-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.milestone._id; if (v) pm.environment.set('milestoneId', v); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Milestones",
+      "_postman_id": "req-45",
+      "description": "Milestone CRUD and the checkbox toggle.",
+      "item": [
+        {
+          "name": "Create Milestone",
+          "_postman_id": "req-38",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/milestones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones"
+              ]
+            },
+            "description": "Alternative to `POST /goals/:id/milestones` - pass the goal id in the body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal\": \"{{goalId}}\",\n  \"title\": \"Choose studio brand colors\",\n  \"dueDate\": \"2026-08-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.milestone._id; if (v) pm.environment.set('milestoneId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upcoming Milestones",
+          "_postman_id": "req-39",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/upcoming?limit=10&withinDays=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "upcoming"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "withinDays",
+                  "value": "",
+                  "description": "Optional - only milestones due within N days"
+                }
+              ]
+            },
+            "description": "Shared upcoming feed across every goal."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Milestone",
+          "_postman_id": "req-40",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/{{milestoneId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestoneId}}"
+              ]
+            },
+            "description": "Single milestone with its parent goal."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Milestone",
+          "_postman_id": "req-41",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/{{milestoneId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestoneId}}"
+              ]
+            },
+            "description": "Edit the title or due date.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Register studio name\",\n  \"dueDate\": \"2026-08-18\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Toggle Milestone",
+          "_postman_id": "req-42",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/{{milestoneId}}/toggle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestoneId}}",
+                "toggle"
+              ]
+            },
+            "description": "The circular checkbox on the Goal detail screen, and the single most important endpoint in the app.\n\nOne call: flips the completion state, recalculates the goal progress and status, writes an activity log, updates the day streak and evaluates achievements.\n\nReturns `{ milestone, goal, streak }` so the whole screen updates in one round-trip.\n\nCompleting every milestone flips the goal to `completed`. Un-checking one reverts it to `active` and nulls `completedAt`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reorder Milestones",
+          "_postman_id": "req-43",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/reorder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "reorder"
+              ]
+            },
+            "description": "Drag-to-reorder.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": \"{{milestoneId}}\",\n      \"order\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Milestone",
+          "_postman_id": "req-44",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/milestones/{{milestoneId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "milestones",
+                "{{milestoneId}}"
+              ]
+            },
+            "description": "Soft-deletes and recalculates the parent goal."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dream Boards",
+      "_postman_id": "req-57",
+      "description": "Vision tab: board list, Create Dream Board, board detail, collage and the full-screen viewer.",
+      "item": [
+        {
+          "name": "List Boards",
+          "_postman_id": "req-46",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards?searchTerm=&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "`data.summary.headline` is the \"3 boards keeping you inspired\" subtitle. Each card carries `coverImage`, `imageCount` and `updatedLabel` (\"Updated Just now\")."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.boards && res.data.boards[0] && res.data.boards[0]._id; if (v) pm.environment.set('boardId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Board",
+          "_postman_id": "req-47",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards"
+              ]
+            },
+            "description": "Create Dream Board screen. Multipart.\n\n- `name` - \"Name your dream\"\n- `coverMood` - id from `GET /content/cover-moods` (\"Choose a cover mood\")\n- `cover` - alternatively upload your own cover file\n- `images` - up to 10 files for \"Your visual story\"\n\nIf no cover is chosen the first uploaded image becomes the cover.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "type": "text",
+                  "value": "Dream Life 2026"
+                },
+                {
+                  "key": "coverMood",
+                  "type": "text",
+                  "value": "{{coverMoodId}}",
+                  "description": "Optional cover mood id"
+                },
+                {
+                  "key": "collageLayout",
+                  "type": "text",
+                  "value": "grid-2",
+                  "description": "grid-2 | grid-3 | mosaic | stack | hero"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "description": "Repeat this key for multiple files (max 10)",
+                  "src": []
+                },
+                {
+                  "key": "cover",
+                  "type": "file",
+                  "description": "Optional custom cover image",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data._id; if (v) pm.environment.set('boardId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Board Detail",
+          "_postman_id": "req-48",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}"
+              ]
+            },
+            "description": "Board detail screen. Returns the board plus the first 9 images, and `remainingImageCount` which drives the \"4+\" overflow tile."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.images && res.data.images[0] && res.data.images[0]._id; if (v) pm.environment.set('boardImageId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Board",
+          "_postman_id": "req-49",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}"
+              ]
+            },
+            "description": "The \"...\" menu > Edit. Rename, swap cover mood or change layout.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dream Life 2026\",\n  \"collageLayout\": \"mosaic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Board",
+          "_postman_id": "req-50",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}"
+              ]
+            },
+            "description": "The \"...\" menu > Delete. Cascades to every image and removes the Cloudinary assets."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Board Images",
+          "_postman_id": "req-51",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/images?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "The \"View all\" link and the \"4+\" overflow tile."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Board Images",
+          "_postman_id": "req-52",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "images"
+              ]
+            },
+            "description": "The \"Add photos +\" tile. Up to 10 files per request.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "description": "Repeat this key for multiple files (max 10)",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data.images && res.data.images[0] && res.data.images[0]._id; if (v) pm.environment.set('boardImageId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Single Image",
+          "_postman_id": "req-53",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/images/{{boardImageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "images",
+                "{{boardImageId}}"
+              ]
+            },
+            "description": "The full-screen image viewer."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Board Image",
+          "_postman_id": "req-54",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/images/{{boardImageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "images",
+                "{{boardImageId}}"
+              ]
+            },
+            "description": "The per-image delete button. Promotes another image to cover if the deleted one was the cover."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reorder Board Images",
+          "_postman_id": "req-55",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/images/reorder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "images",
+                "reorder"
+              ]
+            },
+            "description": "Arrange the collage.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": \"{{boardImageId}}\",\n      \"order\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Collage Layout",
+          "_postman_id": "req-56",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/collage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "collage"
+              ]
+            },
+            "description": "The \"Select preferred collage\" row. The backend stores the chosen layout key; the client renders the collage from it plus the ordered image list.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"collageLayout\": \"hero\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Progress",
+      "_postman_id": "req-61",
+      "description": "Progress tab.",
+      "item": [
+        {
+          "name": "Get Progress",
+          "_postman_id": "req-58",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/progress?range=daily",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "progress"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "daily",
+                  "description": "daily | weekly | monthly"
+                }
+              ]
+            },
+            "description": "The entire Progress screen in one call:\n- `overall` - percent plus the \"+12% this week\" delta (`deltaBasis` tells you whether it came from a nightly snapshot or recent activity)\n- `completedGoals`\n- `milestones` - \"6/14\" and \"43% done\"\n- `streak` - current, longest and the \"Personal best\" label\n- `chart` - zero-filled buckets, Mon..Sun for daily"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Completion Chart",
+          "_postman_id": "req-59",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/progress/chart?range=weekly",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "progress",
+                "chart"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "weekly",
+                  "description": "daily (7 days, Mon..Sun) | weekly (8 weeks) | monthly (12 months)"
+                }
+              ]
+            },
+            "description": "The Daily / Weekly / Monthly toggle. Re-fetches only the chart. Buckets are always zero-filled so the chart never collapses."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Streak",
+          "_postman_id": "req-60",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/progress/streak",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "progress",
+                "streak"
+              ]
+            },
+            "description": "Day streak and personal best. A streak that has gone stale reads 0 automatically."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Achievements",
+      "_postman_id": "req-64",
+      "description": "Profile > Achievements.",
+      "item": [
+        {
+          "name": "Get Achievements",
+          "_postman_id": "req-62",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/achievements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "achievements"
+              ]
+            },
+            "description": "Returns `earned` and `locked` badges. Locked ones include `progress: { current, threshold, percent }` so the screen can show how close the user is."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Achievement Summary",
+          "_postman_id": "req-63",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/achievements/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "achievements",
+                "summary"
+              ]
+            },
+            "description": "The one-line \"8 badges - 42% avg completion\" row on the Profile screen."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "_postman_id": "req-72",
+      "description": "Notification feed and FCM device registration.",
+      "item": [
+        {
+          "name": "Register Device Token",
+          "_postman_id": "req-65",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/device-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "device-token"
+              ]
+            },
+            "description": "Register for push. Upserts, so it is safe to call on every app launch.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-device-token-here\",\n  \"platform\": \"android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unregister Device Token",
+          "_postman_id": "req-66",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/device-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "device-token"
+              ]
+            },
+            "description": "Call on logout.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-device-token-here\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Notifications",
+          "_postman_id": "req-67",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?isRead=&type=&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "isRead",
+                  "value": "",
+                  "description": "true | false"
+                },
+                {
+                  "key": "type",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "`meta.unreadCount` drives the badge dot."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('notificationId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unread Count",
+          "_postman_id": "req-68",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "Badge dot count only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark All Read",
+          "_postman_id": "req-69",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark One Read",
+          "_postman_id": "req-70",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Notification",
+          "_postman_id": "req-71",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "_postman_id": "req-75",
+      "description": "Settings screen.",
+      "item": [
+        {
+          "name": "Get Settings",
+          "_postman_id": "req-73",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings"
+              ]
+            },
+            "description": "Returns the three notification toggles plus the Help & Support page list."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Notification Preferences",
+          "_postman_id": "req-74",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications"
+              ]
+            },
+            "description": "Goal reminders, Milestone reminders and Daily inspiration toggles. Send only the ones that changed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goalReminders\": true,\n  \"milestoneReminders\": true,\n  \"dailyInspiration\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Content (Reference Data)",
+      "_postman_id": "req-83",
+      "description": "Admin-managed reference data consumed by the mobile app, plus the public Help & Support pages.",
+      "item": [
+        {
+          "name": "Get Areas of Life",
+          "_postman_id": "req-76",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "areas"
+              ]
+            },
+            "description": "The Goals filter chips and the New goal \"Area of life\" picker."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('areaOfLifeId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Priorities",
+          "_postman_id": "req-77",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/priorities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "priorities"
+              ]
+            },
+            "description": "The New goal \"Priority\" chips, with colors and a `weight` for semantic sorting."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('priorityId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Cover Moods",
+          "_postman_id": "req-78",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/cover-moods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "cover-moods"
+              ]
+            },
+            "description": "The \"Choose a cover mood\" grid on Create Dream Board."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('coverMoodId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Collage Layouts",
+          "_postman_id": "req-79",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/collage-layouts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "collage-layouts"
+              ]
+            },
+            "description": "The \"Select preferred collage\" template row."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Random Quote",
+          "_postman_id": "req-80",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/quotes/random?exclude=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "quotes",
+                "random"
+              ],
+              "query": [
+                {
+                  "key": "exclude",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Alias of `GET /home/motivation`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Pages",
+          "_postman_id": "req-81",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/pages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "pages"
+              ]
+            },
+            "description": "Public. Slugs for About App, Privacy Policy and Terms & Privacy.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Page",
+          "_postman_id": "req-82",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/content/pages/privacy-policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "content",
+                "pages",
+                "privacy-policy"
+              ]
+            },
+            "description": "Public. Settings > Help & Support content. Slug is `about`, `privacy-policy` or `terms`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Auth & Dashboard",
+      "_postman_id": "req-90",
+      "description": "Run \"Login as Admin\" first to populate {{adminToken}}.",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "_postman_id": "req-84",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Signs in the seeded super admin and saves `{{adminToken}}`. Defaults come from SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@mydreamboard.app\",\n  \"password\": \"Admin@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.environment.set('adminToken', res.data.accessToken);",
+                  "  pm.test('admin token saved', function () { pm.expect(res.data.accessToken).to.be.a('string'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard Stats",
+          "_postman_id": "req-85",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "stats"
+              ]
+            },
+            "description": "The two stat cards. Each returns BOTH the raw count and a percentage so the frontend can render either:\n- `totalUsers.percent` = value / ADMIN_USER_TARGET (env var, default 100)\n- `activeUsers.percent` = active / total (active = seen in the last 30 days)\n- `changePercent` and `trend` drive the up/down arrow",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registration Rate",
+          "_postman_id": "req-86",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard/registration-rate?week=current&start=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "registration-rate"
+              ],
+              "query": [
+                {
+                  "key": "week",
+                  "value": "current",
+                  "description": "current | previous"
+                },
+                {
+                  "key": "start",
+                  "value": "",
+                  "description": "Optional YYYY-MM-DD anchor"
+                }
+              ]
+            },
+            "description": "The \"Registration rate\" bar chart. Sun..Sat buckets, always zero-filled, with both `count` and `percent` per day.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Growth",
+          "_postman_id": "req-87",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard/user-growth?year=2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "user-growth"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
+              ]
+            },
+            "description": "The \"User Growth\" area chart. Jan..Dec with `newUsers` and a running cumulative `totalUsers`, seeded by `carryIn` (the user count before Jan 1) so the curve does not restart each year.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recent Users",
+          "_postman_id": "req-88",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard/recent-users?limit=9",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "recent-users"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "9"
+                }
+              ]
+            },
+            "description": "The recent users table under the charts.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard Overview",
+          "_postman_id": "req-89",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard/overview?year=2026&limit=9",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "overview"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026"
+                },
+                {
+                  "key": "limit",
+                  "value": "9"
+                }
+              ]
+            },
+            "description": "Stats, both charts and the recent users table in a single call.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Users",
+      "_postman_id": "req-98",
+      "description": "All Users screen.",
+      "item": [
+        {
+          "name": "List Users",
+          "_postman_id": "req-91",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?searchTerm=&role=all&status=all&sortBy=createdAt&sortOrder=desc&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "",
+                  "description": "Matches name, email and phone"
+                },
+                {
+                  "key": "role",
+                  "value": "all",
+                  "description": "user | admin | super_admin | all"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "active | inactive | all"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "The paginated users table. `meta` supplies the \"Showing 1 to 9 of 12 results\" footer. Each row includes `joiningDate` and `lastActiveLabel`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('targetUserId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User",
+          "_postman_id": "req-92",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{targetUserId}}"
+              ]
+            },
+            "description": "The \"User Profile\" modal: `age`, `joiningDate`, `lastActiveLabel` and the full stat block.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create User",
+          "_postman_id": "req-93",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            },
+            "description": "Manually create an account (already verified).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"New Member\",\n  \"email\": \"member@example.com\",\n  \"phone\": \"\",\n  \"password\": \"Passw0rd!\",\n  \"role\": \"user\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User",
+          "_postman_id": "req-94",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{targetUserId}}"
+              ]
+            },
+            "description": "The edit action in the dashboard table.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"Updated Name\",\n  \"phone\": \"+15550000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User Status",
+          "_postman_id": "req-95",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{targetUserId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{targetUserId}}",
+                "status"
+              ]
+            },
+            "description": "The green check activate/deactivate action. Deactivating revokes every session immediately.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inactive\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User Role",
+          "_postman_id": "req-96",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{targetUserId}}/role",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{targetUserId}}",
+                "role"
+              ]
+            },
+            "description": "Super admin only.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete User",
+          "_postman_id": "req-97",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{targetUserId}}"
+              ]
+            },
+            "description": "The Confirm Action modal. Soft-deletes the user, cascades to their goals, milestones and boards, and revokes all sessions.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Content",
+      "_postman_id": "req-116",
+      "description": "Add Content screen: Area of life chips, Priority chips, Motivation speech list and Cover Mood uploads.",
+      "item": [
+        {
+          "name": "List Areas",
+          "_postman_id": "req-99",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "areas"
+              ]
+            },
+            "description": "Includes inactive rows, unlike the mobile endpoint.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Area",
+          "_postman_id": "req-100",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "areas"
+              ]
+            },
+            "description": "The \"Add Area og Life\" modal. The slug is generated from the name.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Personal Growth\",\n  \"icon\": \"sparkles\",\n  \"color\": \"#14B8A6\",\n  \"order\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data._id; if (v) pm.environment.set('adminAreaId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Area",
+          "_postman_id": "req-101",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/areas/{{adminAreaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "areas",
+                "{{adminAreaId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Personal Growth\",\n  \"color\": \"#0EA5E9\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Area",
+          "_postman_id": "req-102",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/areas/{{adminAreaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "areas",
+                "{{adminAreaId}}"
+              ]
+            },
+            "description": "Refused with 400 for seeded default chips, and with 409 if any goal still references it - deactivate instead. This is what stops the mobile UI breaking.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Priorities",
+          "_postman_id": "req-103",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/priorities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "priorities"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Priority",
+          "_postman_id": "req-104",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/priorities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "priorities"
+              ]
+            },
+            "description": "The \"Add Priority\" modal. `weight` controls semantic sort order (High=3, Medium=2, Low=1).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Critical\",\n  \"color\": \"#DC2626\",\n  \"weight\": 4,\n  \"order\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data._id; if (v) pm.environment.set('adminPriorityId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Priority",
+          "_postman_id": "req-105",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/priorities/{{adminPriorityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "priorities",
+                "{{adminPriorityId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"color\": \"#B91C1C\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Priority",
+          "_postman_id": "req-106",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/priorities/{{adminPriorityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "priorities",
+                "{{adminPriorityId}}"
+              ]
+            },
+            "description": "Same default and in-use protection as areas.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Motivation Speeches",
+          "_postman_id": "req-107",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "quotes"
+              ]
+            },
+            "description": "The \"Motivation speech\" list.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Motivation Speech",
+          "_postman_id": "req-108",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "quotes"
+              ]
+            },
+            "description": "The inline add input.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Progress, not perfection. One milestone at a time.\",\n  \"author\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data._id; if (v) pm.environment.set('adminQuoteId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Motivation Speech",
+          "_postman_id": "req-109",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/quotes/{{adminQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "quotes",
+                "{{adminQuoteId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Small wins build the dream.\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Motivation Speech",
+          "_postman_id": "req-110",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/quotes/{{adminQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "quotes",
+                "{{adminQuoteId}}"
+              ]
+            },
+            "description": "The red trash icon on each row.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Cover Moods",
+          "_postman_id": "req-111",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/cover-moods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "cover-moods"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Cover Moods",
+          "_postman_id": "req-112",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/cover-moods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "cover-moods"
+              ]
+            },
+            "description": "The \"Upload to Cover Mood\" drag-and-drop area. Accepts up to 10 PNG / JPG / JPEG / WEBP files at once.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "description": "Repeat this key for multiple files",
+                  "src": []
+                },
+                {
+                  "key": "title",
+                  "type": "text",
+                  "value": "Beach Sunrise",
+                  "description": "Optional"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('adminCoverMoodId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Cover Mood",
+          "_postman_id": "req-113",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/cover-moods/{{adminCoverMoodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "cover-moods",
+                "{{adminCoverMoodId}}"
+              ]
+            },
+            "description": "Deactivates instead of deleting if any board still uses it, so existing boards keep their cover.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Page",
+          "_postman_id": "req-114",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/pages/about",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "pages",
+                "about"
+              ]
+            },
+            "description": "Slug is `about`, `privacy-policy` or `terms`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Page",
+          "_postman_id": "req-115",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/pages/about",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "pages",
+                "about"
+              ]
+            },
+            "description": "Edits the Help & Support content the mobile app reads.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"About App\",\n  \"content\": \"My Dream Board helps you turn big dreams into small, achievable milestones.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Notifications",
+      "_postman_id": "req-122",
+      "description": "The admin header bell.",
+      "item": [
+        {
+          "name": "List Admin Notifications",
+          "_postman_id": "req-117",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notifications?isRead=&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "isRead",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Admin-audience notifications, for example \"New user joined\".",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const res = pm.response.json();",
+                  "if (res.data) { const v = res.data && res.data[0] && res.data[0]._id; if (v) pm.environment.set('adminNotificationId', v); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Unread Count",
+          "_postman_id": "req-118",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "The bell badge.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark All Read",
+          "_postman_id": "req-119",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark One Read",
+          "_postman_id": "req-120",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notifications/{{adminNotificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "{{adminNotificationId}}",
+                "read"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Broadcast Announcement",
+          "_postman_id": "req-121",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notifications/broadcast",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notifications",
+                "broadcast"
+              ]
+            },
+            "description": "Sends an in-app notification plus push to every active user.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New feature available\",\n  \"body\": \"Dream boards now support collage layouts.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Uploads (Generic)",
+      "_postman_id": "req-125",
+      "description": "Standalone Cloudinary helpers kept from the original starter. Feature endpoints handle their own uploads.",
+      "item": [
+        {
+          "name": "Upload Image",
+          "_postman_id": "req-123",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads"
+              ]
+            },
+            "description": "Generic image upload.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "folder",
+                  "type": "text",
+                  "value": "",
+                  "description": "Optional subfolder"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Image",
+          "_postman_id": "req-124",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/uploads/:publicId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "uploads",
+                ":publicId"
+              ]
+            },
+            "description": "Delete by Cloudinary public id.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
