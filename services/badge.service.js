@@ -4,7 +4,7 @@ import UserBadge from '../models/userBadge.model.js';
 import Goal from '../models/goal.model.js';
 import Milestone from '../models/milestone.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
-import BoardImage from '../models/boardImage.model.js';
+import Dream from '../models/dream.model.js';
 import User from '../models/user.model.js';
 import { BADGE_METRIC, GOAL_STATUS, NOTIFICATION_TYPE } from '../constants/index.js';
 import { createNotification } from './notification.service.js';
@@ -13,14 +13,14 @@ import { readStreak } from './streak.service.js';
 const collectMetrics = async (userId) => {
   const id = new mongoose.Types.ObjectId(String(userId));
 
-  const [user, goalsCreated, goalsCompleted, milestonesCompleted, boardsCreated, imagesUploaded, areas] =
+  const [user, goalsCreated, goalsCompleted, milestonesCompleted, boardsCreated, dreamsCreated, areas] =
     await Promise.all([
       User.findById(id).select('streak timezone'),
       Goal.countDocuments({ user: id, isDeleted: false }),
       Goal.countDocuments({ user: id, isDeleted: false, status: GOAL_STATUS.COMPLETED }),
       Milestone.countDocuments({ user: id, isDeleted: false, isCompleted: true }),
       VisionBoard.countDocuments({ user: id, isDeleted: false }),
-      BoardImage.countDocuments({ user: id, isDeleted: false }),
+      Dream.countDocuments({ user: id, isDeleted: false }),
       Goal.distinct('areaOfLife', { user: id, isDeleted: false })
     ]);
 
@@ -31,7 +31,7 @@ const collectMetrics = async (userId) => {
     [BADGE_METRIC.GOALS_COMPLETED]: goalsCompleted,
     [BADGE_METRIC.MILESTONES_COMPLETED]: milestonesCompleted,
     [BADGE_METRIC.BOARDS_CREATED]: boardsCreated,
-    [BADGE_METRIC.IMAGES_UPLOADED]: imagesUploaded,
+    [BADGE_METRIC.DREAMS_CREATED]: dreamsCreated,
     [BADGE_METRIC.STREAK_CURRENT]: streak.current,
     [BADGE_METRIC.AREAS_COVERED]: areas.length
   };

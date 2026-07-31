@@ -4,6 +4,7 @@ import { GOAL_STATUS, GOAL_STATUS_VALUES } from '../constants/index.js';
 const goalSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    dream: { type: mongoose.Schema.Types.ObjectId, ref: 'Dream', default: null, index: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true, default: '' },
     areaOfLife: { type: mongoose.Schema.Types.ObjectId, ref: 'AreaOfLife', required: true },
@@ -22,6 +23,7 @@ const goalSchema = new mongoose.Schema(
 
 goalSchema.index({ user: 1, isDeleted: 1, status: 1, createdAt: -1 });
 goalSchema.index({ user: 1, areaOfLife: 1, isDeleted: 1 });
+goalSchema.index({ dream: 1, isDeleted: 1 });
 goalSchema.index({ user: 1, targetDate: 1 });
 goalSchema.index({ status: 1, targetDate: 1, isDeleted: 1 });
 

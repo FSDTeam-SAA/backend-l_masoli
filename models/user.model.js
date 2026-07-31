@@ -1,7 +1,15 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import env from '../config/env.js';
-import { ROLES, ROLE_VALUES, USER_STATUS, USER_STATUS_VALUES } from '../constants/index.js';
+import {
+  ROLES,
+  ROLE_VALUES,
+  SUBSCRIPTION_SOURCE_VALUES,
+  SUBSCRIPTION_TIER,
+  SUBSCRIPTION_TIER_VALUES,
+  USER_STATUS,
+  USER_STATUS_VALUES
+} from '../constants/index.js';
 import { safeTimezone } from '../utils/dateHelper.js';
 
 const userSchema = new mongoose.Schema(
@@ -26,6 +34,12 @@ const userSchema = new mongoose.Schema(
     deletedAt: { type: Date, default: null },
     lastActiveAt: { type: Date, default: Date.now },
     passwordChangedAt: { type: Date, default: null },
+    subscription: {
+      tier: { type: String, enum: SUBSCRIPTION_TIER_VALUES, default: SUBSCRIPTION_TIER.FREE },
+      source: { type: String, enum: SUBSCRIPTION_SOURCE_VALUES, default: 'none' },
+      startedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null }
+    },
     notificationSettings: {
       goalReminders: { type: Boolean, default: true },
       milestoneReminders: { type: Boolean, default: true },
@@ -48,6 +62,17 @@ userSchema.index({ userName: 'text', email: 'text' });
 userSchema.virtual('fullName').get(function () {
   const composed = [this.firstName, this.lastName].filter(Boolean).join(' ');
   return composed || this.userName;
+});
+
+userSchema.virtual('activeTier').get(function () {
+  const tier = this.subscription?.tier || SUBSCRIPTION_TIER.FREE;
+
+  if (tier === SUBSCRIPTION_TIER.FREE) return SUBSCRIPTION_TIER.FREE;
+
+  const expiresAt = this.subscription?.expiresAt;
+  if (expiresAt && expiresAt.getTime() < Date.now()) return SUBSCRIPTION_TIER.FREE;
+
+  return tier;
 });
 
 userSchema.virtual('age').get(function () {

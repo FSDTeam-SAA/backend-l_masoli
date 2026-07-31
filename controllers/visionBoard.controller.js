@@ -5,21 +5,24 @@ import sendResponse from '../utils/sendResponse.js';
 import pick from '../utils/pick.js';
 import QueryBuilder from '../utils/QueryBuilder.js';
 import VisionBoard from '../models/visionBoard.model.js';
-import BoardImage from '../models/boardImage.model.js';
+import Dream from '../models/dream.model.js';
+import Goal from '../models/goal.model.js';
 import CoverMood from '../models/coverMood.model.js';
 import { ACTIVITY_TYPE, CLOUDINARY_FOLDERS } from '../constants/index.js';
 import {
   uploadManyToCloudinary,
   uploadToCloudinary,
-  deleteFromCloudinary,
   deleteManyFromCloudinary,
   toImagePayload
 } from '../utils/cloudinary.js';
 import { logActivity } from '../services/activity.service.js';
 import { evaluateBadges } from '../services/badge.service.js';
+import { recomputeBoardProgress } from '../services/dreamProgress.service.js';
+import { assertWithinLimit } from '../services/plan.service.js';
 import { formatDateLabel, relativeUpdatedLabel } from '../utils/labelHelper.js';
+import { decorateDream, findOwnedBoard } from './dream.controller.js';
 
-const BOARD_DETAIL_IMAGE_LIMIT = 9;
+const BOARD_DETAIL_DREAM_LIMIT = 9;
 
 const decorateBoard = (board, timezone) => {
   const plain = typeof board.toObject === 'function' ? board.toObject() : board;
@@ -29,24 +32,6 @@ const decorateBoard = (board, timezone) => {
     updatedLabel: relativeUpdatedLabel(plain.lastUpdatedAt),
     updatedDateLabel: formatDateLabel(plain.lastUpdatedAt, timezone)
   };
-};
-
-const findOwnedBoard = async (boardId, userId) => {
-  const board = await VisionBoard.findOne({ _id: boardId, user: userId, isDeleted: false });
-
-  if (!board) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Dream board not found');
-  }
-
-  return board;
-};
-
-const syncImageCount = async (board) => {
-  board.imageCount = await BoardImage.countDocuments({ board: board._id, isDeleted: false });
-  board.lastUpdatedAt = new Date();
-  await board.save();
-
-  return board;
 };
 
 const resolveCoverImage = async ({ coverMoodId, file }) => {
@@ -73,10 +58,7 @@ const resolveCoverImage = async ({ coverMoodId, file }) => {
 };
 
 export const listBoards = catchAsync(async (req, res) => {
-  const builder = new QueryBuilder(
-    VisionBoard.find({ user: req.user._id, isDeleted: false }),
-    req.query
-  )
+  const builder = new QueryBuilder(VisionBoard.find({ user: req.user._id, isDeleted: false }), req.query)
     .search(['name'])
     .sort('-lastUpdatedAt')
     .paginate();
@@ -97,6 +79,8 @@ export const listBoards = catchAsync(async (req, res) => {
 });
 
 export const createBoard = catchAsync(async (req, res) => {
+  await assertWithinLimit('boards', { user: req.user });
+
   const files = req.files?.images || (Array.isArray(req.files) ? req.files : []);
   const coverFile = req.files?.cover?.[0] || null;
 
@@ -110,30 +94,36 @@ export const createBoard = catchAsync(async (req, res) => {
   });
 
   if (files.length > 0) {
-    const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.BOARDS);
+    const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.DREAMS);
+    const titles = Array.isArray(req.body.title) ? req.body.title : req.body.title ? [req.body.title] : [];
 
-    await BoardImage.insertMany(
+    const dreams = await Dream.insertMany(
       results.map((result, index) => {
         const image = toImagePayload(result);
         return {
           user: req.user._id,
           board: board._id,
-          url: image.url,
-          publicId: image.publicId,
-          width: image.width,
-          height: image.height,
+          title: titles[index] || '',
+          image,
           order: index
         };
       })
     );
 
     if (!board.coverImage?.url) {
-      const first = toImagePayload(results[0]);
-      board.coverImage = { url: first.url, publicId: first.publicId };
+      board.coverImage = { url: dreams[0].image.url, publicId: dreams[0].image.publicId };
+      await board.save();
     }
+
+    await logActivity({
+      user: req.user,
+      type: ACTIVITY_TYPE.DREAM_CREATED,
+      refId: board._id,
+      refModel: 'VisionBoard'
+    });
   }
 
-  await syncImageCount(board);
+  await recomputeBoardProgress(board._id);
 
   await logActivity({
     user: req.user,
@@ -142,23 +132,18 @@ export const createBoard = catchAsync(async (req, res) => {
     refModel: 'VisionBoard'
   });
 
-  if (files.length > 0) {
-    await logActivity({
-      user: req.user,
-      type: ACTIVITY_TYPE.IMAGE_UPLOADED,
-      refId: board._id,
-      refModel: 'VisionBoard'
-    });
-  }
-
   await evaluateBadges(req.user._id);
 
-  const images = await BoardImage.find({ board: board._id, isDeleted: false }).sort({ order: 1 });
+  const fresh = await VisionBoard.findById(board._id);
+  const dreams = await Dream.find({ board: board._id, isDeleted: false }).sort({ order: 1 });
 
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     message: 'Dream board created successfully',
-    data: { ...decorateBoard(board, req.user.timezone), images }
+    data: {
+      ...decorateBoard(fresh, req.user.timezone),
+      dreams: dreams.map((dream) => decorateDream(dream, req.user.timezone))
+    }
   });
 });
 
@@ -166,16 +151,16 @@ export const getBoard = catchAsync(async (req, res) => {
   const board = await findOwnedBoard(req.params.id, req.user._id);
   await board.populate({ path: 'coverMood', select: 'title image' });
 
-  const images = await BoardImage.find({ board: board._id, isDeleted: false })
+  const dreams = await Dream.find({ board: board._id, isDeleted: false })
     .sort({ order: 1, createdAt: -1 })
-    .limit(BOARD_DETAIL_IMAGE_LIMIT);
+    .limit(BOARD_DETAIL_DREAM_LIMIT);
 
   sendResponse(res, {
     message: 'Dream board retrieved successfully',
     data: {
       ...decorateBoard(board, req.user.timezone),
-      images,
-      remainingImageCount: Math.max(board.imageCount - images.length, 0)
+      dreams: dreams.map((dream) => decorateDream(dream, req.user.timezone)),
+      remainingDreamCount: Math.max(board.dreamCount - dreams.length, 0)
     }
   });
 });
@@ -202,121 +187,20 @@ export const updateBoard = catchAsync(async (req, res) => {
 export const deleteBoard = catchAsync(async (req, res) => {
   const board = await findOwnedBoard(req.params.id, req.user._id);
 
-  const images = await BoardImage.find({ board: board._id }).select('publicId');
+  const dreams = await Dream.find({ board: board._id }).select('_id image');
 
   board.isDeleted = true;
   await board.save();
-  await BoardImage.updateMany({ board: board._id }, { isDeleted: true });
+
+  await Dream.updateMany({ board: board._id }, { isDeleted: true });
+  await Goal.updateMany({ dream: { $in: dreams.map((dream) => dream._id) } }, { dream: null });
 
   await deleteManyFromCloudinary([
-    ...images.map((image) => image.publicId),
+    ...dreams.map((dream) => dream.image?.publicId),
     board.coverImage?.publicId
   ]);
 
   sendResponse(res, { message: 'Dream board deleted successfully' });
-});
-
-export const listBoardImages = catchAsync(async (req, res) => {
-  const board = await findOwnedBoard(req.params.id, req.user._id);
-
-  const builder = new QueryBuilder(BoardImage.find({ board: board._id, isDeleted: false }), req.query)
-    .sort('order')
-    .paginate();
-
-  const [images, meta] = await Promise.all([builder.modelQuery, builder.countTotal()]);
-
-  sendResponse(res, {
-    message: 'Board images retrieved successfully',
-    meta,
-    data: images
-  });
-});
-
-export const getBoardImage = catchAsync(async (req, res) => {
-  const board = await findOwnedBoard(req.params.id, req.user._id);
-
-  const image = await BoardImage.findOne({ _id: req.params.imageId, board: board._id, isDeleted: false });
-
-  if (!image) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Image not found');
-  }
-
-  sendResponse(res, { message: 'Image retrieved successfully', data: image });
-});
-
-export const addBoardImages = catchAsync(async (req, res) => {
-  const board = await findOwnedBoard(req.params.id, req.user._id);
-  const files = req.files?.length ? req.files : [];
-
-  if (files.length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Please upload at least one image');
-  }
-
-  const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.BOARDS);
-
-  const images = await BoardImage.insertMany(
-    results.map((result, index) => {
-      const image = toImagePayload(result);
-      return {
-        user: req.user._id,
-        board: board._id,
-        url: image.url,
-        publicId: image.publicId,
-        width: image.width,
-        height: image.height,
-        order: board.imageCount + index
-      };
-    })
-  );
-
-  if (!board.coverImage?.url) {
-    board.coverImage = { url: images[0].url, publicId: images[0].publicId };
-  }
-
-  await syncImageCount(board);
-
-  await logActivity({
-    user: req.user,
-    type: ACTIVITY_TYPE.IMAGE_UPLOADED,
-    refId: board._id,
-    refModel: 'VisionBoard'
-  });
-
-  await evaluateBadges(req.user._id);
-
-  sendResponse(res, {
-    statusCode: StatusCodes.CREATED,
-    message: `${images.length} image${images.length === 1 ? '' : 's'} added successfully`,
-    data: { board: decorateBoard(board, req.user.timezone), images }
-  });
-});
-
-export const deleteBoardImage = catchAsync(async (req, res) => {
-  const board = await findOwnedBoard(req.params.id, req.user._id);
-
-  const image = await BoardImage.findOne({ _id: req.params.imageId, board: board._id, isDeleted: false });
-
-  if (!image) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Image not found');
-  }
-
-  image.isDeleted = true;
-  await image.save();
-  await deleteFromCloudinary(image.publicId);
-
-  if (board.coverImage?.publicId === image.publicId) {
-    const fallback = await BoardImage.findOne({ board: board._id, isDeleted: false }).sort({ order: 1 });
-    board.coverImage = fallback
-      ? { url: fallback.url, publicId: fallback.publicId }
-      : { url: '', publicId: '' };
-  }
-
-  await syncImageCount(board);
-
-  sendResponse(res, {
-    message: 'Image deleted successfully',
-    data: decorateBoard(board, req.user.timezone)
-  });
 });
 
 export const updateCollageLayout = catchAsync(async (req, res) => {
@@ -330,26 +214,4 @@ export const updateCollageLayout = catchAsync(async (req, res) => {
     message: 'Collage layout updated successfully',
     data: decorateBoard(board, req.user.timezone)
   });
-});
-
-export const reorderBoardImages = catchAsync(async (req, res) => {
-  const board = await findOwnedBoard(req.params.id, req.user._id);
-  const ids = req.body.items.map((item) => item.id);
-
-  const owned = await BoardImage.countDocuments({ _id: { $in: ids }, board: board._id, isDeleted: false });
-
-  if (owned !== ids.length) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'One or more images could not be found');
-  }
-
-  await BoardImage.bulkWrite(
-    req.body.items.map((item) => ({
-      updateOne: { filter: { _id: item.id, board: board._id }, update: { order: item.order } }
-    }))
-  );
-
-  board.lastUpdatedAt = new Date();
-  await board.save();
-
-  sendResponse(res, { message: 'Images reordered successfully' });
 });

@@ -30,5 +30,10 @@ router.patch(
   validateRequest(adminUserValidation.updateRoleSchema),
   adminUserController.updateUserRole
 );
+router.patch(
+  '/:id/subscription',
+  validateRequest(adminUserValidation.updateSubscriptionSchema),
+  adminUserController.updateUserSubscription
+);
 
 export default router;

@@ -6,6 +6,7 @@ export const createGoalSchema = z.object({
   body: z.object({
     title: z.string().min(2, 'Title must be at least 2 characters').trim(),
     description: z.string().trim().optional(),
+    dream: objectId.nullish(),
     areaOfLife: objectId,
     priority: objectId,
     targetDate: z.coerce.date()
@@ -16,6 +17,7 @@ export const updateGoalSchema = z.object({
   body: z.object({
     title: z.string().min(2).trim().optional(),
     description: z.string().trim().optional(),
+    dream: objectId.nullish(),
     areaOfLife: objectId.optional(),
     priority: objectId.optional(),
     targetDate: z.coerce.date().optional()

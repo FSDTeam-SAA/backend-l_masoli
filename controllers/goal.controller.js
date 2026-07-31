@@ -8,14 +8,18 @@ import Goal from '../models/goal.model.js';
 import Milestone from '../models/milestone.model.js';
 import AreaOfLife from '../models/areaOfLife.model.js';
 import Priority from '../models/priority.model.js';
+import Dream from '../models/dream.model.js';
 import { ACTIVITY_TYPE, GOAL_STATUS } from '../constants/index.js';
 import { logActivity, removeActivity } from '../services/activity.service.js';
 import { recomputeGoalProgress } from '../services/goalProgress.service.js';
+import { recomputeDreamProgress } from '../services/dreamProgress.service.js';
 import { evaluateBadges } from '../services/badge.service.js';
+import { assertWithinLimit } from '../services/plan.service.js';
 import { formatDateLabel, relativeDueLabel } from '../utils/labelHelper.js';
 
 const POPULATE_AREA = { path: 'areaOfLife', select: 'name slug color icon' };
 const POPULATE_PRIORITY = { path: 'priority', select: 'name slug color weight' };
+const POPULATE_DREAM = { path: 'dream', select: 'title image progress board' };
 
 export const decorateGoal = (goal, timezone) => {
   const plain = typeof goal.toObject === 'function' ? goal.toObject() : goal;
@@ -49,15 +53,24 @@ const findOwnedGoal = async (goalId, userId) => {
   return goal;
 };
 
-const assertReferences = async ({ areaOfLife, priority }) => {
+const assertReferences = async ({ areaOfLife, priority, dream }, userId) => {
   if (areaOfLife) {
-    const exists = await AreaOfLife.exists({ _id: areaOfLife, isActive: true });
+    const exists = await AreaOfLife.exists({
+      _id: areaOfLife,
+      isActive: true,
+      $or: [{ user: null }, { user: userId }]
+    });
     if (!exists) throw new ApiError(StatusCodes.BAD_REQUEST, 'Selected area of life is not available');
   }
 
   if (priority) {
     const exists = await Priority.exists({ _id: priority, isActive: true });
     if (!exists) throw new ApiError(StatusCodes.BAD_REQUEST, 'Selected priority is not available');
+  }
+
+  if (dream) {
+    const exists = await Dream.exists({ _id: dream, user: userId, isDeleted: false });
+    if (!exists) throw new ApiError(StatusCodes.BAD_REQUEST, 'Selected dream could not be found');
   }
 };
 
@@ -72,7 +85,8 @@ export const listGoals = catchAsync(async (req, res) => {
   const builder = new QueryBuilder(
     Goal.find({ user: req.user._id, isDeleted: false })
       .populate(POPULATE_AREA)
-      .populate(POPULATE_PRIORITY),
+      .populate(POPULATE_PRIORITY)
+      .populate(POPULATE_DREAM),
     query
   )
     .search(['title', 'description'])
@@ -100,12 +114,18 @@ export const listGoals = catchAsync(async (req, res) => {
 });
 
 export const createGoal = catchAsync(async (req, res) => {
-  const payload = pick(req.body, ['title', 'description', 'areaOfLife', 'priority', 'targetDate']);
+  await assertWithinLimit('goals', { user: req.user });
 
-  await assertReferences(payload);
+  const payload = pick(req.body, ['title', 'description', 'dream', 'areaOfLife', 'priority', 'targetDate']);
+
+  await assertReferences(payload, req.user._id);
 
   const goal = await Goal.create({ ...payload, user: req.user._id });
-  await goal.populate([POPULATE_AREA, POPULATE_PRIORITY]);
+  await goal.populate([POPULATE_AREA, POPULATE_PRIORITY, POPULATE_DREAM]);
+
+  if (goal.dream) {
+    await recomputeDreamProgress(goal.dream);
+  }
 
   await logActivity({
     user: req.user,
@@ -126,7 +146,8 @@ export const createGoal = catchAsync(async (req, res) => {
 export const getGoal = catchAsync(async (req, res) => {
   const goal = await Goal.findOne({ _id: req.params.id, user: req.user._id, isDeleted: false })
     .populate(POPULATE_AREA)
-    .populate(POPULATE_PRIORITY);
+    .populate(POPULATE_PRIORITY)
+    .populate(POPULATE_DREAM);
 
   if (!goal) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Goal not found');
@@ -149,13 +170,26 @@ export const getGoal = catchAsync(async (req, res) => {
 
 export const updateGoal = catchAsync(async (req, res) => {
   const goal = await findOwnedGoal(req.params.id, req.user._id);
-  const payload = pick(req.body, ['title', 'description', 'areaOfLife', 'priority', 'targetDate']);
+  const payload = pick(req.body, ['title', 'description', 'dream', 'areaOfLife', 'priority', 'targetDate']);
+  const previousDream = goal.dream;
 
-  await assertReferences(payload);
+  await assertReferences(payload, req.user._id);
+
+  if (Object.prototype.hasOwnProperty.call(req.body, 'dream')) {
+    payload.dream = req.body.dream || null;
+  }
 
   Object.assign(goal, payload);
   await goal.save();
-  await goal.populate([POPULATE_AREA, POPULATE_PRIORITY]);
+  await goal.populate([POPULATE_AREA, POPULATE_PRIORITY, POPULATE_DREAM]);
+
+  if (previousDream && String(previousDream) !== String(goal.dream || '')) {
+    await recomputeDreamProgress(previousDream);
+  }
+
+  if (goal.dream) {
+    await recomputeDreamProgress(goal.dream);
+  }
 
   sendResponse(res, {
     message: 'Goal updated successfully',
@@ -168,6 +202,10 @@ export const deleteGoal = catchAsync(async (req, res) => {
 
   goal.isDeleted = true;
   await goal.save();
+
+  if (goal.dream) {
+    await recomputeDreamProgress(goal.dream);
+  }
 
   await Milestone.updateMany({ goal: goal._id }, { isDeleted: true });
   await removeActivity({ user: req.user, type: ACTIVITY_TYPE.GOAL_COMPLETED, refId: goal._id });
@@ -243,6 +281,8 @@ export const listGoalMilestones = catchAsync(async (req, res) => {
 
 export const createGoalMilestone = catchAsync(async (req, res) => {
   const goal = await findOwnedGoal(req.params.id, req.user._id);
+
+  await assertWithinLimit('milestonesPerGoal', { user: req.user, scopeId: goal._id });
 
   const milestone = await Milestone.create({
     user: req.user._id,

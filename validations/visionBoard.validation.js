@@ -21,11 +21,3 @@ export const updateBoardSchema = z.object({
 export const collageLayoutSchema = z.object({
   body: z.object({ collageLayout: z.enum(COLLAGE_LAYOUT_KEYS) })
 });
-
-export const reorderImagesSchema = z.object({
-  body: z.object({
-    items: z
-      .array(z.object({ id: objectId, order: z.coerce.number().int() }))
-      .min(1, 'At least one image is required')
-  })
-});

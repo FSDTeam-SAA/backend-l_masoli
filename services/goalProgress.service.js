@@ -5,6 +5,7 @@ import { ACTIVITY_TYPE, GOAL_STATUS, NOTIFICATION_TYPE } from '../constants/inde
 import { logActivity, removeActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 import { evaluateBadges } from './badge.service.js';
+import { recomputeDreamProgress } from './dreamProgress.service.js';
 
 export const recomputeGoalProgress = async (goalId, { silent = false } = {}) => {
   const goal = await Goal.findById(goalId);
@@ -51,6 +52,10 @@ export const recomputeGoalProgress = async (goalId, { silent = false } = {}) => 
   }
 
   await goal.save();
+
+  if (goal.dream) {
+    await recomputeDreamProgress(goal.dream);
+  }
 
   if (silent) return goal;
 

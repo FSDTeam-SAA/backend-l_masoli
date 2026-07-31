@@ -10,6 +10,7 @@ import { logActivity, removeActivity } from '../services/activity.service.js';
 import { recomputeGoalProgress } from '../services/goalProgress.service.js';
 import { touchStreak, readStreak } from '../services/streak.service.js';
 import { evaluateBadges } from '../services/badge.service.js';
+import { assertWithinLimit } from '../services/plan.service.js';
 import { decorateGoal, decorateMilestone } from './goal.controller.js';
 import { addDays } from '../utils/dateHelper.js';
 
@@ -33,6 +34,8 @@ export const createMilestone = catchAsync(async (req, res) => {
   if (!goal) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Goal not found');
   }
+
+  await assertWithinLimit('milestonesPerGoal', { user: req.user, scopeId: goal._id });
 
   const milestone = await Milestone.create({
     user: req.user._id,

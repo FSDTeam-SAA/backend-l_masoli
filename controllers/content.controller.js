@@ -3,20 +3,113 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../utils/catchAsync.js';
 import ApiError from '../utils/ApiError.js';
 import sendResponse from '../utils/sendResponse.js';
+import pick from '../utils/pick.js';
 import AreaOfLife from '../models/areaOfLife.model.js';
+import Goal from '../models/goal.model.js';
+import { assertWithinLimit } from '../services/plan.service.js';
 import Priority from '../models/priority.model.js';
 import CoverMood from '../models/coverMood.model.js';
 import MotivationQuote from '../models/motivationQuote.model.js';
 import StaticPage from '../models/staticPage.model.js';
 import { COLLAGE_LAYOUTS } from '../constants/index.js';
 
+const slugify = (value) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 export const getAreas = catchAsync(async (req, res) => {
-  const areas = await AreaOfLife.find({ isActive: true }).sort({ order: 1, name: 1 });
+  const areas = await AreaOfLife.find({
+    isActive: true,
+    $or: [{ user: null }, { user: req.user._id }]
+  }).sort({ user: 1, order: 1, name: 1 });
 
   sendResponse(res, {
     message: 'Areas of life retrieved successfully',
     data: areas
   });
+});
+
+export const createMyArea = catchAsync(async (req, res) => {
+  await assertWithinLimit('customAreasOfLife', { user: req.user });
+
+  const slug = slugify(req.body.name);
+
+  const clash = await AreaOfLife.findOne({
+    slug,
+    $or: [{ user: null }, { user: req.user._id }]
+  });
+
+  if (clash) {
+    throw new ApiError(StatusCodes.CONFLICT, `"${clash.name}" already exists in your areas of life`);
+  }
+
+  const area = await AreaOfLife.create({
+    name: req.body.name,
+    slug,
+    icon: req.body.icon || 'target',
+    color: req.body.color || '#3B82F6',
+    order: req.body.order ?? 99,
+    user: req.user._id,
+    createdBy: req.user._id
+  });
+
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    message: 'Area of life created successfully',
+    data: area
+  });
+});
+
+export const updateMyArea = catchAsync(async (req, res) => {
+  const area = await AreaOfLife.findOne({ _id: req.params.id, user: req.user._id });
+
+  if (!area) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'You can only edit areas of life that you created yourself'
+    );
+  }
+
+  Object.assign(area, pick(req.body, ['name', 'icon', 'color', 'order', 'isActive']));
+
+  if (req.body.name) {
+    area.slug = slugify(req.body.name);
+  }
+
+  await area.save();
+
+  sendResponse(res, { message: 'Area of life updated successfully', data: area });
+});
+
+export const deleteMyArea = catchAsync(async (req, res) => {
+  const area = await AreaOfLife.findOne({ _id: req.params.id, user: req.user._id });
+
+  if (!area) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      'You can only delete areas of life that you created yourself'
+    );
+  }
+
+  const inUse = await Goal.countDocuments({
+    areaOfLife: area._id,
+    user: req.user._id,
+    isDeleted: false
+  });
+
+  if (inUse > 0) {
+    throw new ApiError(
+      StatusCodes.CONFLICT,
+      `"${area.name}" is used by ${inUse} of your goals. Move those goals to another area first`
+    );
+  }
+
+  await area.deleteOne();
+
+  sendResponse(res, { message: 'Area of life deleted successfully' });
 });
 
 export const getPriorities = catchAsync(async (req, res) => {
