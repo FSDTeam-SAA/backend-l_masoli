@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import Goal from '../models/goal.model.js';
 import Milestone from '../models/milestone.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
-import BoardImage from '../models/boardImage.model.js';
+import Dream from '../models/dream.model.js';
 import UserBadge from '../models/userBadge.model.js';
 import User from '../models/user.model.js';
 import ProgressSnapshot from '../models/progressSnapshot.model.js';
@@ -50,23 +50,34 @@ export const overallProgress = async (userId) => {
 export const userStats = async (userId) => {
   const id = toObjectId(userId);
 
-  const [goals, completedGoals, activeGoals, boards, totalMilestones, completedMilestones, badges, avgCompletion] =
-    await Promise.all([
-      Goal.countDocuments({ user: id, isDeleted: false }),
-      Goal.countDocuments({ user: id, isDeleted: false, status: GOAL_STATUS.COMPLETED }),
-      Goal.countDocuments({ user: id, isDeleted: false, status: GOAL_STATUS.ACTIVE }),
-      VisionBoard.countDocuments({ user: id, isDeleted: false }),
-      Milestone.countDocuments({ user: id, isDeleted: false }),
-      Milestone.countDocuments({ user: id, isDeleted: false, isCompleted: true }),
-      UserBadge.countDocuments({ user: id }),
-      overallProgress(userId)
-    ]);
+  const [
+    goals,
+    completedGoals,
+    activeGoals,
+    boards,
+    dreams,
+    totalMilestones,
+    completedMilestones,
+    badges,
+    avgCompletion
+  ] = await Promise.all([
+    Goal.countDocuments({ user: id, isDeleted: false }),
+    Goal.countDocuments({ user: id, isDeleted: false, status: GOAL_STATUS.COMPLETED }),
+    Goal.countDocuments({ user: id, isDeleted: false, status: GOAL_STATUS.ACTIVE }),
+    VisionBoard.countDocuments({ user: id, isDeleted: false }),
+    Dream.countDocuments({ user: id, isDeleted: false }),
+    Milestone.countDocuments({ user: id, isDeleted: false }),
+    Milestone.countDocuments({ user: id, isDeleted: false, isCompleted: true }),
+    UserBadge.countDocuments({ user: id }),
+    overallProgress(userId)
+  ]);
 
   return {
     goals,
     activeGoals,
     completedGoals,
     boards,
+    dreams,
     totalMilestones,
     completedMilestones,
     milestonePercent: percentage(completedMilestones, totalMilestones),

@@ -11,8 +11,10 @@ const AREAS = [
   { name: 'Faith', slug: 'faith', icon: 'sparkles', color: '#8B5CF6', order: 1 },
   { name: 'Family', slug: 'family', icon: 'users', color: '#EC4899', order: 2 },
   { name: 'Health', slug: 'health', icon: 'heart-pulse', color: '#10B981', order: 3 },
-  { name: 'Business & Career', slug: 'business-career', icon: 'briefcase', color: '#3B82F6', order: 4 },
-  { name: 'Fun & Travel', slug: 'fun-travel', icon: 'plane', color: '#F59E0B', order: 5 }
+  { name: 'Fun & Travel', slug: 'fun-travel', icon: 'plane', color: '#F59E0B', order: 4 },
+  { name: 'Business & Career', slug: 'business-career', icon: 'briefcase', color: '#3B82F6', order: 5 },
+  { name: 'Finance', slug: 'finance', icon: 'wallet', color: '#059669', order: 6 },
+  { name: 'Personal Growth', slug: 'personal-growth', icon: 'trending-up', color: '#F97316', order: 7 }
 ];
 
 const PRIORITIES = [
@@ -73,10 +75,10 @@ const BADGES = [
   {
     code: 'curator',
     name: 'Curator',
-    description: 'Add 20 images to your dream boards',
+    description: 'Add 10 dreams to your dream boards',
     icon: 'image',
     order: 7,
-    criteria: { metric: BADGE_METRIC.IMAGES_UPLOADED, threshold: 20 }
+    criteria: { metric: BADGE_METRIC.DREAMS_CREATED, threshold: 10 }
   },
   {
     code: 'dream_achiever',
@@ -118,23 +120,59 @@ const PAGES = [
   }
 ];
 
-const upsertMany = async (Model, rows, uniqueKey, extra = {}) => {
-  const operations = rows.map((row) => ({
-    updateOne: {
-      filter: { [uniqueKey]: row[uniqueKey] },
-      update: { $setOnInsert: { ...row, ...extra } },
-      upsert: true
+const upsertMany = async (Model, rows, uniqueKey, extra = {}, overwriteFields = []) => {
+  const operations = rows.map((row) => {
+    const payload = { ...row, ...extra };
+
+    if (overwriteFields.length === 0) {
+      return {
+        updateOne: { filter: { [uniqueKey]: row[uniqueKey] }, update: { $setOnInsert: payload }, upsert: true }
+      };
     }
-  }));
+
+    const set = {};
+    const setOnInsert = {};
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (overwriteFields.includes(key)) set[key] = value;
+      else setOnInsert[key] = value;
+    });
+
+    return {
+      updateOne: {
+        filter: { [uniqueKey]: row[uniqueKey] },
+        update: { $set: set, $setOnInsert: setOnInsert },
+        upsert: true
+      }
+    };
+  });
 
   const result = await Model.bulkWrite(operations);
   return result.upsertedCount;
 };
 
 const seed = async () => {
-  const areas = await upsertMany(AreaOfLife, AREAS, 'slug', { isDefault: true, isActive: true });
-  const priorities = await upsertMany(Priority, PRIORITIES, 'slug', { isDefault: true, isActive: true });
-  const badges = await upsertMany(Badge, BADGES, 'code', { isActive: true });
+  const areas = await upsertMany(
+    AreaOfLife,
+    AREAS,
+    'slug',
+    { isDefault: true, isActive: true, user: null },
+    ['isDefault', 'user', 'order', 'icon', 'color']
+  );
+  const priorities = await upsertMany(
+    Priority,
+    PRIORITIES,
+    'slug',
+    { isDefault: true, isActive: true },
+    ['isDefault', 'weight', 'order']
+  );
+  const badges = await upsertMany(Badge, BADGES, 'code', { isActive: true }, [
+    'name',
+    'description',
+    'icon',
+    'order',
+    'criteria'
+  ]);
   const pages = await upsertMany(StaticPage, PAGES, 'slug');
   const quotes = await upsertMany(MotivationQuote, QUOTES, 'text', { isActive: true });
 

@@ -8,7 +8,7 @@ import User from '../models/user.model.js';
 import Goal from '../models/goal.model.js';
 import Milestone from '../models/milestone.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
-import { ROLES, USER_STATUS } from '../constants/index.js';
+import { ROLES, SUBSCRIPTION_TIER, USER_STATUS } from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { formatDateLabel, relativeUpdatedLabel } from '../utils/labelHelper.js';
@@ -135,6 +135,25 @@ export const updateUserRole = catchAsync(async (req, res) => {
   await user.save();
 
   sendResponse(res, { message: 'User role updated successfully', data: decorateUser(user) });
+});
+
+export const updateUserSubscription = catchAsync(async (req, res) => {
+  const user = await findManageableUser(req.params.id, req.user);
+  const { tier, expiresAt } = req.body;
+
+  user.subscription = {
+    tier,
+    source: tier === SUBSCRIPTION_TIER.PREMIUM ? 'manual' : 'none',
+    startedAt: tier === SUBSCRIPTION_TIER.PREMIUM ? user.subscription?.startedAt || new Date() : null,
+    expiresAt: tier === SUBSCRIPTION_TIER.PREMIUM ? expiresAt || null : null
+  };
+
+  await user.save();
+
+  sendResponse(res, {
+    message: `User moved to the ${tier} plan`,
+    data: decorateUser(user)
+  });
 });
 
 export const deleteUser = catchAsync(async (req, res) => {

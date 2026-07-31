@@ -9,7 +9,8 @@
     "start": "node server.js",
     "seed": "node seed/index.js",
     "repair:progress": "node scripts/repairGoalProgress.js",
-    "repair:streaks": "node scripts/repairStreaks.js"
+    "repair:streaks": "node scripts/repairStreaks.js",
+    "migrate:dreams": "node scripts/migrateToDreams.js"
   },
   "keywords": [
     "express",

@@ -56,7 +56,7 @@ export const ACTIVITY_TYPE = {
   GOAL_COMPLETED: 'goal_completed',
   MILESTONE_COMPLETED: 'milestone_completed',
   BOARD_CREATED: 'board_created',
-  IMAGE_UPLOADED: 'image_uploaded'
+  DREAM_CREATED: 'dream_created'
 };
 
 export const ACTIVITY_TYPE_VALUES = Object.values(ACTIVITY_TYPE);
@@ -76,7 +76,7 @@ export const BADGE_METRIC = {
   GOALS_COMPLETED: 'goals_completed',
   MILESTONES_COMPLETED: 'milestones_completed',
   BOARDS_CREATED: 'boards_created',
-  IMAGES_UPLOADED: 'images_uploaded',
+  DREAMS_CREATED: 'dreams_created',
   STREAK_CURRENT: 'streak_current',
   AREAS_COVERED: 'areas_covered'
 };
@@ -104,7 +104,44 @@ export const CHART_RANGE_VALUES = Object.values(CHART_RANGE);
 export const CLOUDINARY_FOLDERS = {
   AVATARS: 'avatars',
   COVER_MOODS: 'cover-moods',
-  BOARDS: 'boards'
+  BOARDS: 'boards',
+  DREAMS: 'dreams'
+};
+
+export const SUBSCRIPTION_TIER = {
+  FREE: 'free',
+  PREMIUM: 'premium'
+};
+
+export const SUBSCRIPTION_TIER_VALUES = Object.values(SUBSCRIPTION_TIER);
+
+export const SUBSCRIPTION_SOURCE_VALUES = ['none', 'manual', 'apple', 'google', 'stripe'];
+
+export const UNLIMITED = -1;
+
+export const PLAN_LIMITS = {
+  [SUBSCRIPTION_TIER.FREE]: {
+    boards: 2,
+    dreamsPerBoard: 10,
+    goals: 10,
+    milestonesPerGoal: 15,
+    customAreasOfLife: 3
+  },
+  [SUBSCRIPTION_TIER.PREMIUM]: {
+    boards: UNLIMITED,
+    dreamsPerBoard: UNLIMITED,
+    goals: UNLIMITED,
+    milestonesPerGoal: UNLIMITED,
+    customAreasOfLife: UNLIMITED
+  }
+};
+
+export const LIMIT_LABELS = {
+  boards: 'dream board',
+  dreamsPerBoard: 'dream on this board',
+  goals: 'goal',
+  milestonesPerGoal: 'milestone on this goal',
+  customAreasOfLife: 'custom area of life'
 };
 
 export const ACTIVE_USER_WINDOW_DAYS = 30;

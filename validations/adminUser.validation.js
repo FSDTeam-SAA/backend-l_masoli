@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { email, password } from './common.validation.js';
-import { ROLE_VALUES, USER_STATUS_VALUES } from '../constants/index.js';
+import { ROLE_VALUES, SUBSCRIPTION_TIER_VALUES, USER_STATUS_VALUES } from '../constants/index.js';
 
 export const listUsersSchema = z.object({
   query: z.object({
@@ -20,6 +20,13 @@ export const updateStatusSchema = z.object({
 
 export const updateRoleSchema = z.object({
   body: z.object({ role: z.enum(ROLE_VALUES) })
+});
+
+export const updateSubscriptionSchema = z.object({
+  body: z.object({
+    tier: z.enum(SUBSCRIPTION_TIER_VALUES),
+    expiresAt: z.coerce.date().nullish()
+  })
 });
 
 export const updateUserSchema = z.object({

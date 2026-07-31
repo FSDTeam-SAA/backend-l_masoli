@@ -1,10 +1,12 @@
 # My Dream Board — Backend API
 
-Backend for the **My Dream Board** mobile app and admin dashboard. Users set goals across areas of life, break them into milestones, build vision boards, and track streaks and progress. Admins manage users, reference content and analytics.
+Backend for the **My Dream Board** mobile app and admin dashboard. Users build dream boards, place Dreams on them, then break each Dream into Goals and Milestones and track streaks and progress. Admins manage users, reference content and analytics.
+
+The core hierarchy is **Dream Board → Dream → Goal → Milestone**. A *Dream* is what the user wants to experience, become, achieve or have — an image, a title and a Dream Story, shown on the board. Goals and Milestones are the actionable path beneath it. Progress rolls all the way up: completing a Milestone updates its Goal, which updates its Dream, which updates the Board.
 
 Express 4 · MongoDB / Mongoose 8 · JWT (access + refresh) · Zod · Cloudinary · Firebase Cloud Messaging · node-cron. ES modules throughout.
 
-**107 endpoints across 16 modules.** A ready-to-import Postman collection lives in [`docs/`](docs/).
+**116 endpoints across 17 modules.** A ready-to-import Postman collection lives in [`docs/`](docs/).
 
 ---
 
@@ -30,6 +32,18 @@ The seed prints the super admin credentials (defaults: `admin@mydreamboard.app` 
 | `npm run seed` | Idempotent seed — safe to re-run |
 | `npm run repair:progress` | Recompute every goal's derived progress counters |
 | `npm run repair:streaks` | Rebuild every user's streak from milestone history |
+| `npm run migrate:dreams` | One-off migration to the Dream structure — see below |
+
+### Migration
+
+If you are upgrading a database created before the Dream layer existed, run once:
+
+```bash
+npm run migrate:dreams
+npm run seed
+```
+
+It converts each board image into a Dream, backfills the seven default Areas of Life as global, drops the stale unique indexes that blocked user-owned categories, and recomputes every board counter. Safe to re-run.
 
 ---
 
@@ -42,7 +56,13 @@ The seed prints the super admin credentials (defaults: `admin@mydreamboard.app` 
 3. Run **Auth → Register**, then **Auth → Verify Email** (in development the OTP is printed to the server console).
 4. Run **Admin → Login as Admin** to populate `{{adminToken}}`.
 
-Tokens and resource ids (`goalId`, `boardId`, `milestoneId`, …) are captured into the environment automatically by test scripts, so the collection runs top-to-bottom without copy-pasting anything.
+Tokens and resource ids (`goalId`, `dreamId`, `boardId`, `milestoneId`, …) are captured into the environment automatically by test scripts, so the collection runs top-to-bottom without copy-pasting anything.
+
+The collection also carries, for the frontend developer:
+
+- **Saved example responses** on 48 GET requests — open a request, click "Example response", and read the exact JSON shape without sending anything
+- **A screen → endpoint map** in the collection description, so you can go from a Figma frame to the right call
+- **A description on all 117 requests**, naming the screen each one serves
 
 ---
 
@@ -80,6 +100,7 @@ Base URL `/api/v1`.
 | Goals | `/goals` | Goals list, New goal, Goal detail |
 | Milestones | `/milestones` | New milestone, the checkbox toggle |
 | Dream Boards | `/boards` | Vision tab, Create board, board detail, collage, viewer |
+| Dreams | `/boards/:id/dreams` | Add/edit a Dream, Dream detail and its Goals |
 | Progress | `/progress` | Progress tab |
 | Achievements | `/achievements` | Profile → Achievements |
 | Notifications | `/notifications` | Notification feed, FCM device tokens |
@@ -106,7 +127,33 @@ Admin Settings reuses `PATCH /users/me` and `PATCH /auth/change-password` — th
 - If the numbers ever drift, `npm run repair:progress` reconciles them
 
 ### `PATCH /milestones/:id/toggle` is the hot path
-One call flips the checkbox, recomputes the goal, writes an activity log, updates the streak and evaluates achievements — then returns `{ milestone, goal, streak }` so the Goal detail screen updates in a single round-trip.
+One call flips the checkbox, recomputes the goal, cascades that up to the Dream and Board, writes an activity log, updates the streak and evaluates achievements — then returns `{ milestone, goal, streak }` so the Goal detail screen updates in a single round-trip.
+
+### The Dream layer
+`Dream` sits between a board and its goals. Each Dream holds an image, a `title` and a `story` (the Dream Story), and carries derived `totalGoals`, `completedGoals` and `progress`.
+
+- **`Goal.dream` is optional.** A goal can hang under a Dream or stand alone, so nothing is forced on the user.
+- Progress cascades **Milestone → Goal → Dream → Board**, each level averaging the one below it. `services/dreamProgress.service.js` is the only writer for the Dream and Board figures, same discipline as goal progress.
+- Deleting a Dream **unlinks** its goals rather than deleting them — no user work is ever lost.
+- Board `coverImage` falls back to the first remaining Dream's image if the cover Dream is removed.
+
+### Areas of Life are global or user-owned
+`AreaOfLife.user` is `null` for the seven seeded defaults and set for a user's own categories. `GET /content/areas` returns defaults **plus** that user's own; the admin endpoints only ever touch the globals. Users can't edit or delete a default, can't create one whose name collides with a default, and can't delete their own while any of their goals still use it.
+
+### Subscription tiers (architecture only — no payment in this phase)
+`user.subscription.tier` is `free` or `premium`, and `user.activeTier` is a virtual that automatically downgrades to `free` once `expiresAt` passes, so an expired subscription needs no cron job to take effect.
+
+Limits live in one place, `PLAN_LIMITS` in [`constants/index.js`](constants/index.js), and are enforced by `assertWithinLimit()` at each create endpoint. `-1` means unlimited.
+
+| Limit | Free | Premium |
+|---|---|---|
+| Dream boards | 2 | unlimited |
+| Dreams per board | 10 | unlimited |
+| Goals | 10 | unlimited |
+| Milestones per goal | 15 | unlimited |
+| Custom areas of life | 3 | unlimited |
+
+`GET /users/me/subscription` returns the tier, every limit and current usage. Tier is set today by `PATCH /admin/users/:id/subscription`. When in-app purchases are added later, a payment webhook flips the same field — no restructuring, and `requireTier('premium')` is already available for gating premium-only endpoints.
 
 ### Streaks are timezone-correct
 A streak day is a calendar day **in the user's timezone** with at least one milestone completed. All day arithmetic is done on `YYYY-MM-DD` strings via `Intl.DateTimeFormat`, never by subtracting milliseconds — that is what makes it survive DST.
@@ -177,16 +224,18 @@ See [`.env.example`](.env.example) for the full list.
 config/       env, db, cloudinary, mailer, firebase
 constants/    enums and shared constants
 models/       18 Mongoose models
-services/     goalProgress, streak, badge, notification, push, analytics, activity, auth
+services/     goalProgress, dreamProgress, streak, badge, notification, push,
+              analytics, activity, auth, plan
 controllers/  one per module
 routes/       one per module, registered flat in app.js
 validations/  Zod schemas per module
-middlewares/  auth, validateRequest, rateLimiter, upload, parseJsonBody, error handlers
+middlewares/  auth, requireTier, validateRequest, rateLimiter, upload,
+              parseJsonBody, error handlers
 utils/        ApiError, catchAsync, sendResponse, QueryBuilder, cloudinary, token, otp,
               email, dateHelper, labelHelper, pick
 jobs/         cron jobs + registry
 seed/         idempotent seed data
-scripts/      repair utilities
+scripts/      repair + migration utilities
 docs/         Postman collection + environment
 ```
 
@@ -194,6 +243,10 @@ docs/         Postman collection + environment
 
 ## Not implemented
 
-**Subscription plans and payments** are deliberately out of scope for this phase. The `Subscription Plans` and `Interactions` items visible in some admin design frames are leftovers from the reused template.
+**Payment processing is deliberately out of scope for this phase.** The subscription *architecture* is in place — tiers, per-tier limits and enforcement — but there is no payment gateway, no receipt validation and no store integration. Premium is granted by an admin.
+
+Adding real subscriptions later means: App Store Connect and Play Console product setup, in-app purchase handling in the mobile app, and on the backend receipt validation plus renewal webhooks and a subscription state machine. Apple and Google mandate their own in-app purchase for digital subscriptions, so Stripe is only an option on web. None of it requires changing what exists today.
+
+The `Interactions` item visible in some admin design frames is a leftover from the reused template.
 #   b a c k e n d - l _ m a s o l i  
  

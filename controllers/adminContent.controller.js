@@ -43,7 +43,7 @@ const assertDeletable = async ({ document, Model, referenceField, label }) => {
 };
 
 export const listAreas = catchAsync(async (req, res) => {
-  const areas = await AreaOfLife.find().sort({ order: 1, name: 1 });
+  const areas = await AreaOfLife.find({ user: null }).sort({ order: 1, name: 1 });
 
   sendResponse(res, { message: 'Areas of life retrieved successfully', data: areas });
 });
@@ -52,6 +52,7 @@ export const createArea = catchAsync(async (req, res) => {
   const area = await AreaOfLife.create({
     ...pick(req.body, ['name', 'icon', 'color', 'order']),
     slug: slugify(req.body.name),
+    user: null,
     createdBy: req.user._id
   });
 
@@ -67,7 +68,10 @@ export const updateArea = catchAsync(async (req, res) => {
 
   if (payload.name) payload.slug = slugify(payload.name);
 
-  const area = await AreaOfLife.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
+  const area = await AreaOfLife.findOneAndUpdate({ _id: req.params.id, user: null }, payload, {
+    new: true,
+    runValidators: true
+  });
 
   if (!area) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Area of life not found');
@@ -77,7 +81,7 @@ export const updateArea = catchAsync(async (req, res) => {
 });
 
 export const deleteArea = catchAsync(async (req, res) => {
-  const area = await AreaOfLife.findById(req.params.id);
+  const area = await AreaOfLife.findOne({ _id: req.params.id, user: null });
 
   await assertDeletable({ document: area, Model: Goal, referenceField: 'areaOfLife', label: 'Area of life' });
   await area.deleteOne();

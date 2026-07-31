@@ -9,6 +9,7 @@ import Goal from '../models/goal.model.js';
 import { uploadToCloudinary, deleteFromCloudinary, toImagePayload } from '../utils/cloudinary.js';
 import { CLOUDINARY_FOLDERS, GOAL_STATUS } from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
+import { planSnapshot } from '../services/plan.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { formatDateLabel } from '../utils/labelHelper.js';
 
@@ -86,6 +87,15 @@ export const getMyStats = catchAsync(async (req, res) => {
   sendResponse(res, {
     message: 'Stats retrieved successfully',
     data: stats
+  });
+});
+
+export const getMySubscription = catchAsync(async (req, res) => {
+  const snapshot = await planSnapshot(req.user);
+
+  sendResponse(res, {
+    message: 'Subscription retrieved successfully',
+    data: snapshot
   });
 });
 

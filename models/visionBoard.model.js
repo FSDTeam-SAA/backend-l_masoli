@@ -11,7 +11,8 @@ const visionBoardSchema = new mongoose.Schema(
       publicId: { type: String, default: '' }
     },
     collageLayout: { type: String, enum: COLLAGE_LAYOUT_KEYS, default: 'grid-2' },
-    imageCount: { type: Number, default: 0 },
+    dreamCount: { type: Number, default: 0 },
+    progress: { type: Number, default: 0, min: 0, max: 100 },
     lastUpdatedAt: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false }
   },
