@@ -25,15 +25,20 @@ const shutdown = async (signal) => {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  await mongoose.connection.close();
+  if (mongoose.connection.readyState === 1) {
+    await mongoose.connection.close();
+  }
+
   process.exit(0);
 };
 
+// Start the server
 bootstrap().catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);
 });
 
+// Process Error Handlers
 process.on('unhandledRejection', (error) => {
   console.error('UNHANDLED REJECTION! Shutting down...', error);
   if (server) {
@@ -48,5 +53,12 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
+// Signal Handlers
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Nodemon Restart Handler
+process.once('SIGUSR2', async () => {
+  await shutdown('SIGUSR2');
+  process.kill(process.pid, 'SIGUSR2');
+});
