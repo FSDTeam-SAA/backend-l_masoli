@@ -15,7 +15,9 @@ export const updateDreamSchema = z.object({
     title: z.string().trim().max(120).optional(),
     story: z.string().trim().max(2000).optional(),
     areaOfLife: objectId.nullish(),
-    order: z.coerce.number().int().optional()
+    order: z.coerce.number().int().optional(),
+    // Promotes an already-uploaded image to cover by moving it to images[0].
+    coverIndex: z.coerce.number().int().min(0).optional()
   })
 });
 

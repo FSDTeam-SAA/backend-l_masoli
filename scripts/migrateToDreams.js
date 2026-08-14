@@ -45,7 +45,7 @@ const migrateBoardImages = async () => {
   let migrated = 0;
 
   for (const image of images) {
-    const exists = await Dream.findOne({ board: image.board, 'image.publicId': image.publicId });
+    const exists = await Dream.findOne({ board: image.board, 'images.publicId': image.publicId });
     if (exists) continue;
 
     await Dream.create({
@@ -53,12 +53,14 @@ const migrateBoardImages = async () => {
       board: image.board,
       title: image.caption || '',
       story: '',
-      image: {
-        url: image.url,
-        publicId: image.publicId,
-        width: image.width || 0,
-        height: image.height || 0
-      },
+      images: [
+        {
+          url: image.url,
+          publicId: image.publicId,
+          width: image.width || 0,
+          height: image.height || 0
+        }
+      ],
       order: image.order || 0,
       createdAt: image.createdAt
     });

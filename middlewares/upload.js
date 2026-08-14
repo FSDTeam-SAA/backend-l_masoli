@@ -1,7 +1,7 @@
 import multer from 'multer';
 import ApiError from '../utils/ApiError.js';
 import { StatusCodes } from 'http-status-codes';
-import { MAX_BOARD_IMAGES_PER_UPLOAD } from '../constants/index.js';
+import { MAX_FILES_PER_UPLOAD } from '../constants/index.js';
 
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 
@@ -19,7 +19,7 @@ const upload = multer({
   storage,
   limits: {
     fileSize: 10 * 1024 * 1024,
-    files: MAX_BOARD_IMAGES_PER_UPLOAD
+    files: MAX_FILES_PER_UPLOAD
   },
   fileFilter
 });

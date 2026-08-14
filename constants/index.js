@@ -147,3 +147,10 @@ export const LIMIT_LABELS = {
 export const ACTIVE_USER_WINDOW_DAYS = 30;
 
 export const MAX_BOARD_IMAGES_PER_UPLOAD = 10;
+
+/// A dream holds many images, so one request can now carry several dreams
+/// worth of files - the per-request ceiling has to sit above the per-dream
+/// one rather than equal it.
+export const MAX_IMAGES_PER_DREAM = 10;
+
+export const MAX_FILES_PER_UPLOAD = 30;
