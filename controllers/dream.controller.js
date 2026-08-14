@@ -9,7 +9,12 @@ import Goal from '../models/goal.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
 import AreaOfLife from '../models/areaOfLife.model.js';
 import { ACTIVITY_TYPE, CLOUDINARY_FOLDERS } from '../constants/index.js';
-import { uploadManyToCloudinary, uploadToCloudinary, deleteFromCloudinary, toImagePayload } from '../utils/cloudinary.js';
+import {
+  uploadManyToCloudinary,
+  deleteManyFromCloudinary,
+  toImagePayload
+} from '../utils/cloudinary.js';
+import { assertImagesPerDream, collectDreamFiles, groupDreamUploads } from '../utils/dreamUploads.js';
 import { logActivity } from '../services/activity.service.js';
 import { evaluateBadges } from '../services/badge.service.js';
 import { recomputeBoardProgress, recomputeDreamProgress } from '../services/dreamProgress.service.js';
@@ -33,11 +38,37 @@ const assertAreaAvailable = async (areaOfLife, userId) => {
   }
 };
 
+const EMPTY_IMAGE = { url: '', publicId: '', width: 0, height: 0 };
+
+/// Reads a dream's images off either shape: the current `images` array, or
+/// the single `image` object dreams were stored with before one dream could
+/// hold several. Documents written under the old shape keep rendering until
+/// scripts/migrateDreamImages.js has run over them.
+export const dreamImages = (dream) => {
+  if (Array.isArray(dream.images) && dream.images.length > 0) return dream.images;
+
+  // On a hydrated document the old field has no getter (it is off-schema
+  // now), but Mongoose still keeps it in _doc - so read both.
+  const legacy = dream.image || dream._doc?.image;
+
+  return legacy?.url ? [legacy] : [];
+};
+
 export const decorateDream = (dream, timezone) => {
   const plain = typeof dream.toObject === 'function' ? dream.toObject() : dream;
+  // The pre-migration `image` field is dropped from the payload so clients
+  // only ever see one shape: images[] plus the cover.
+  const { image: legacyImage, ...rest } = plain;
+  const images = dreamImages(plain);
+  void legacyImage;
 
   return {
-    ...plain,
+    ...rest,
+    images,
+    // images[0] is the cover by convention - sent explicitly so clients
+    // never have to know that.
+    coverImage: images[0] || EMPTY_IMAGE,
+    imageCount: images.length,
     displayTitle: plain.title || 'Untitled dream',
     goalSummary: `${plain.completedGoals}/${plain.totalGoals} goals`,
     goalProgressLabel: `${plain.completedGoals} of ${plain.totalGoals} goals complete`,
@@ -101,6 +132,7 @@ export const listDreams = catchAsync(async (req, res) => {
     Dream.find({ board: board._id, isDeleted: false }).populate(POPULATE_AREA),
     req.query
   )
+    .search(['title', 'story'])
     .sort('order')
     .paginate();
 
@@ -118,18 +150,19 @@ export const createDream = catchAsync(async (req, res) => {
 
   await assertWithinLimit('dreamsPerBoard', { user: req.user, scopeId: board._id });
 
-  if (!req.file && !req.body.title) {
+  const files = collectDreamFiles(req);
+
+  if (files.length === 0 && !req.body.title) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'A dream needs a title, an image, or both');
   }
 
+  assertImagesPerDream(files.length);
   await assertAreaAvailable(req.body.areaOfLife, req.user._id);
 
-  let image = { url: '', publicId: '', width: 0, height: 0 };
-
-  if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, CLOUDINARY_FOLDERS.DREAMS);
-    image = toImagePayload(result);
-  }
+  // Every file on this request belongs to this one dream; the first is its
+  // cover.
+  const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.DREAMS);
+  const images = results.map(toImagePayload);
 
   const dream = await Dream.create({
     user: req.user._id,
@@ -137,14 +170,16 @@ export const createDream = catchAsync(async (req, res) => {
     title: req.body.title || '',
     story: req.body.story || '',
     areaOfLife: req.body.areaOfLife || null,
-    image,
+    images,
     order: req.body.order ?? board.dreamCount
   });
 
   await dream.populate(POPULATE_AREA);
 
-  if (!board.coverImage?.url && image.url) {
-    board.coverImage = { url: image.url, publicId: image.publicId };
+  const cover = images[0];
+
+  if (!board.coverImage?.url && cover?.url) {
+    board.coverImage = { url: cover.url, publicId: cover.publicId };
     await board.save();
   }
 
@@ -166,37 +201,39 @@ export const createDream = catchAsync(async (req, res) => {
   });
 });
 
+/// Creates several dreams in one request - each with its own title, story
+/// and image set. See utils/dreamUploads.js for the multipart shape.
 export const createManyDreams = catchAsync(async (req, res) => {
   const board = await findOwnedBoard(req.params.id, req.user._id);
-  const files = req.files?.length ? req.files : [];
+  const groups = groupDreamUploads(req);
 
-  if (files.length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Please upload at least one image');
+  if (groups.length === 0) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Please add at least one dream');
   }
 
-  for (let index = 0; index < files.length; index += 1) {
+  for (let index = 0; index < groups.length; index += 1) {
     await assertWithinLimit('dreamsPerBoard', { user: req.user, scopeId: board._id });
   }
 
-  const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.DREAMS);
-  const titles = Array.isArray(req.body.title) ? req.body.title : req.body.title ? [req.body.title] : [];
-
-  const dreams = await Dream.insertMany(
-    results.map((result, index) => {
-      const image = toImagePayload(result);
-      return {
-        user: req.user._id,
-        board: board._id,
-        title: titles[index] || '',
-        story: '',
-        image,
-        order: board.dreamCount + index
-      };
-    })
+  const uploaded = await Promise.all(
+    groups.map((group) => uploadManyToCloudinary(group.files, CLOUDINARY_FOLDERS.DREAMS))
   );
 
-  if (!board.coverImage?.url) {
-    board.coverImage = { url: dreams[0].image.url, publicId: dreams[0].image.publicId };
+  const dreams = await Dream.insertMany(
+    groups.map((group, index) => ({
+      user: req.user._id,
+      board: board._id,
+      title: group.title,
+      story: group.story,
+      images: uploaded[index].map(toImagePayload),
+      order: board.dreamCount + index
+    }))
+  );
+
+  const cover = dreams.map((dream) => dream.images[0]).find((image) => image?.url);
+
+  if (!board.coverImage?.url && cover) {
+    board.coverImage = { url: cover.url, publicId: cover.publicId };
     await board.save();
   }
 
@@ -247,14 +284,28 @@ export const updateDream = catchAsync(async (req, res) => {
     dream.areaOfLife = req.body.areaOfLife || null;
   }
 
-  if (req.file) {
-    const previousPublicId = dream.image?.publicId;
-    const result = await uploadToCloudinary(req.file.buffer, CLOUDINARY_FOLDERS.DREAMS);
-    dream.image = toImagePayload(result);
+  const files = collectDreamFiles(req);
 
-    if (previousPublicId) {
-      await deleteFromCloudinary(previousPublicId);
+  if (files.length > 0) {
+    // Uploading replaces the whole set, matching the single-image behaviour
+    // this endpoint has always had.
+    assertImagesPerDream(files.length);
+    const previousPublicIds = dreamImages(dream).map((image) => image.publicId);
+    const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.DREAMS);
+    dream.images = results.map(toImagePayload);
+
+    await deleteManyFromCloudinary(previousPublicIds);
+  } else if (req.body.coverIndex !== undefined) {
+    // Promotes an existing image to cover by moving it to the front - the
+    // only way the cover changes, since images[0] *is* the cover.
+    const index = req.body.coverIndex;
+
+    if (index < 0 || index >= dream.images.length) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'coverIndex is out of range');
     }
+
+    const [cover] = dream.images.splice(index, 1);
+    dream.images.unshift(cover);
   }
 
   await dream.save();
@@ -275,16 +326,20 @@ export const deleteDream = catchAsync(async (req, res) => {
 
   await Goal.updateMany({ dream: dream._id }, { dream: null });
 
-  if (dream.image?.publicId) {
-    await deleteFromCloudinary(dream.image.publicId);
-  }
+  const images = dreamImages(dream);
+  const publicIds = images.map((image) => image.publicId).filter(Boolean);
+
+  await deleteManyFromCloudinary(publicIds);
 
   const board = await VisionBoard.findById(dream.board);
 
-  if (board && board.coverImage?.publicId === dream.image?.publicId) {
+  // The board's cover is a copy of some dream's cover image, so it only
+  // needs rebuilding when one of the images just deleted was the one on it.
+  if (board && board.coverImage?.publicId && publicIds.includes(board.coverImage.publicId)) {
     const fallback = await Dream.findOne({ board: board._id, isDeleted: false }).sort({ order: 1 });
-    board.coverImage = fallback?.image?.url
-      ? { url: fallback.image.url, publicId: fallback.image.publicId }
+    const fallbackCover = fallback ? dreamImages(fallback)[0] : null;
+    board.coverImage = fallbackCover?.url
+      ? { url: fallbackCover.url, publicId: fallbackCover.publicId }
       : { url: '', publicId: '' };
     await board.save();
   }

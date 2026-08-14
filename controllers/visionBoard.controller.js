@@ -20,7 +20,8 @@ import { evaluateBadges } from '../services/badge.service.js';
 import { recomputeBoardProgress } from '../services/dreamProgress.service.js';
 import { assertWithinLimit } from '../services/plan.service.js';
 import { formatDateLabel, relativeUpdatedLabel } from '../utils/labelHelper.js';
-import { decorateDream, findOwnedBoard } from './dream.controller.js';
+import { groupDreamUploads } from '../utils/dreamUploads.js';
+import { decorateDream, dreamImages, findOwnedBoard } from './dream.controller.js';
 
 const BOARD_DETAIL_DREAM_LIMIT = 9;
 
@@ -81,8 +82,9 @@ export const listBoards = catchAsync(async (req, res) => {
 export const createBoard = catchAsync(async (req, res) => {
   await assertWithinLimit('boards', { user: req.user });
 
-  const files = req.files?.images || (Array.isArray(req.files) ? req.files : []);
-  const coverFile = req.files?.cover?.[0] || null;
+  const files = Array.isArray(req.files) ? req.files : [];
+  const coverFile = files.find((file) => file.fieldname === 'cover') || null;
+  const dreamGroups = groupDreamUploads(req);
 
   const cover = await resolveCoverImage({ coverMoodId: req.body.coverMood, file: coverFile });
 
@@ -93,25 +95,28 @@ export const createBoard = catchAsync(async (req, res) => {
     ...(cover || {})
   });
 
-  if (files.length > 0) {
-    const results = await uploadManyToCloudinary(files, CLOUDINARY_FOLDERS.DREAMS);
-    const titles = Array.isArray(req.body.title) ? req.body.title : req.body.title ? [req.body.title] : [];
-
-    const dreams = await Dream.insertMany(
-      results.map((result, index) => {
-        const image = toImagePayload(result);
-        return {
-          user: req.user._id,
-          board: board._id,
-          title: titles[index] || '',
-          image,
-          order: index
-        };
-      })
+  if (dreamGroups.length > 0) {
+    // One staged dream per group - each keeps all of its own images, with
+    // the first as that dream's cover.
+    const uploaded = await Promise.all(
+      dreamGroups.map((group) => uploadManyToCloudinary(group.files, CLOUDINARY_FOLDERS.DREAMS))
     );
 
-    if (!board.coverImage?.url) {
-      board.coverImage = { url: dreams[0].image.url, publicId: dreams[0].image.publicId };
+    const dreams = await Dream.insertMany(
+      dreamGroups.map((group, index) => ({
+        user: req.user._id,
+        board: board._id,
+        title: group.title,
+        story: group.story,
+        images: uploaded[index].map(toImagePayload),
+        order: index
+      }))
+    );
+
+    const dreamCover = dreams.map((dream) => dream.images[0]).find((image) => image?.url);
+
+    if (!board.coverImage?.url && dreamCover) {
+      board.coverImage = { url: dreamCover.url, publicId: dreamCover.publicId };
       await board.save();
     }
 
@@ -187,7 +192,7 @@ export const updateBoard = catchAsync(async (req, res) => {
 export const deleteBoard = catchAsync(async (req, res) => {
   const board = await findOwnedBoard(req.params.id, req.user._id);
 
-  const dreams = await Dream.find({ board: board._id }).select('_id image');
+  const dreams = await Dream.find({ board: board._id }).select('_id images image');
 
   board.isDeleted = true;
   await board.save();
@@ -196,7 +201,7 @@ export const deleteBoard = catchAsync(async (req, res) => {
   await Goal.updateMany({ dream: { $in: dreams.map((dream) => dream._id) } }, { dream: null });
 
   await deleteManyFromCloudinary([
-    ...dreams.map((dream) => dream.image?.publicId),
+    ...dreams.flatMap((dream) => dreamImages(dream).map((image) => image.publicId)),
     board.coverImage?.publicId
   ]);
 

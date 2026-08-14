@@ -6,7 +6,6 @@ import * as boardController from '../controllers/visionBoard.controller.js';
 import * as dreamController from '../controllers/dream.controller.js';
 import * as boardValidation from '../validations/visionBoard.validation.js';
 import * as dreamValidation from '../validations/dream.validation.js';
-import { MAX_BOARD_IMAGES_PER_UPLOAD } from '../constants/index.js';
 
 const router = Router();
 
@@ -15,14 +14,10 @@ router.use(auth());
 router
   .route('/')
   .get(boardController.listBoards)
-  .post(
-    upload.fields([
-      { name: 'images', maxCount: MAX_BOARD_IMAGES_PER_UPLOAD },
-      { name: 'cover', maxCount: 1 }
-    ]),
-    validateRequest(boardValidation.createBoardSchema),
-    boardController.createBoard
-  );
+  // upload.any() because a dream's files arrive under a per-dream field name
+  // (images_0, images_1, ...) alongside the board's own `cover` file - see
+  // utils/dreamUploads.js.
+  .post(upload.any(), validateRequest(boardValidation.createBoardSchema), boardController.createBoard);
 
 router
   .route('/:id')
@@ -42,23 +37,19 @@ router.patch(
   dreamController.reorderDreams
 );
 
-router.post(
-  '/:id/dreams/bulk',
-  upload.array('images', MAX_BOARD_IMAGES_PER_UPLOAD),
-  dreamController.createManyDreams
-);
+router.post('/:id/dreams/bulk', upload.any(), dreamController.createManyDreams);
 
 router
   .route('/:id/dreams')
   .get(dreamController.listDreams)
-  .post(upload.single('image'), validateRequest(dreamValidation.createDreamSchema), dreamController.createDream);
+  .post(upload.any(), validateRequest(dreamValidation.createDreamSchema), dreamController.createDream);
 
 router.get('/:id/dreams/:dreamId/goals', dreamController.listDreamGoals);
 
 router
   .route('/:id/dreams/:dreamId')
   .get(dreamController.getDream)
-  .patch(upload.single('image'), validateRequest(dreamValidation.updateDreamSchema), dreamController.updateDream)
+  .patch(upload.any(), validateRequest(dreamValidation.updateDreamSchema), dreamController.updateDream)
   .delete(dreamController.deleteDream);
 
 export default router;

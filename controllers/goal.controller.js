@@ -19,7 +19,7 @@ import { formatDateLabel, relativeDueLabel } from '../utils/labelHelper.js';
 
 const POPULATE_AREA = { path: 'areaOfLife', select: 'name slug color icon' };
 const POPULATE_PRIORITY = { path: 'priority', select: 'name slug color weight' };
-const POPULATE_DREAM = { path: 'dream', select: 'title image progress board' };
+const POPULATE_DREAM = { path: 'dream', select: 'title images progress board' };
 
 export const decorateGoal = (goal, timezone) => {
   const plain = typeof goal.toObject === 'function' ? goal.toObject() : goal;
