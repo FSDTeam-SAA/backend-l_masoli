@@ -11,6 +11,7 @@ import AreaOfLife from '../models/areaOfLife.model.js';
 import { ACTIVITY_TYPE, CLOUDINARY_FOLDERS } from '../constants/index.js';
 import {
   uploadManyToCloudinary,
+  deleteFromCloudinary,
   deleteManyFromCloudinary,
   toImagePayload
 } from '../utils/cloudinary.js';
@@ -54,6 +55,14 @@ export const dreamImages = (dream) => {
   return legacy?.url ? [legacy] : [];
 };
 
+/// The same images as plain objects, safe to reorder or splice and assign
+/// straight back to `dream.images`. Each entry keeps its `_id`, so rewriting
+/// the array does not hand the surviving images new ids.
+const normalizeDreamImages = (dream) =>
+  dreamImages(dream).map((image) =>
+    typeof image.toObject === 'function' ? image.toObject() : { ...image }
+  );
+
 export const decorateDream = (dream, timezone) => {
   const plain = typeof dream.toObject === 'function' ? dream.toObject() : dream;
   // The pre-migration `image` field is dropped from the payload so clients
@@ -85,6 +94,21 @@ export const findOwnedBoard = async (boardId, userId) => {
   }
 
   return board;
+};
+
+/// The cover a board falls back to once the image it was showing is gone -
+/// the cover of its first remaining dream that still has one, or nothing.
+/// Dreams are walked rather than filtered in the query because a dream on the
+/// pre-migration shape holds its image outside `images` (see dreamImages).
+const nextBoardCover = async (boardId) => {
+  const dreams = await Dream.find({ board: boardId, isDeleted: false }).sort({ order: 1 });
+
+  for (const dream of dreams) {
+    const cover = dreamImages(dream)[0];
+    if (cover?.url) return cover;
+  }
+
+  return null;
 };
 
 const findOwnedDream = async (dreamId, userId) => {
@@ -259,15 +283,23 @@ export const getDream = catchAsync(async (req, res) => {
   const dream = await findOwnedDream(req.params.dreamId, req.user._id);
   await dream.populate(POPULATE_AREA);
 
-  const goals = await Goal.find({ dream: dream._id, isDeleted: false })
-    .populate({ path: 'areaOfLife', select: 'name slug color icon' })
-    .populate({ path: 'priority', select: 'name slug color weight' })
-    .sort({ createdAt: -1 });
+  const [goals, board] = await Promise.all([
+    Goal.find({ dream: dream._id, isDeleted: false })
+      .populate({ path: 'areaOfLife', select: 'name slug color icon' })
+      .populate({ path: 'priority', select: 'name slug color weight' })
+      .sort({ createdAt: -1 }),
+    VisionBoard.findById(dream.board).select('collageLayout')
+  ]);
 
   sendResponse(res, {
     message: 'Dream retrieved successfully',
     data: {
       ...decorateDream(dream, req.user.timezone),
+      // The collage layout is the *board's* preference, not the dream's (see
+      // visionBoard.model.js). It rides along here so a screen opened on one
+      // dream can arrange that dream's images the way its board is arranged,
+      // without a second request for the board.
+      collageLayout: board?.collageLayout || 'grid-2',
       goals: goals.map((goal) => decorateGoal(goal, req.user.timezone))
     }
   });
@@ -286,7 +318,22 @@ export const updateDream = catchAsync(async (req, res) => {
 
   const files = collectDreamFiles(req);
 
-  if (files.length > 0) {
+  if (files.length > 0 && req.body.replaceCover) {
+    // "Replace" on the Edit Dream screen swaps the frame the board grid
+    // shows and nothing else, so only images[0] is touched here - the branch
+    // below would drop every other image the dream holds.
+    const [result] = await uploadManyToCloudinary(files.slice(0, 1), CLOUDINARY_FOLDERS.DREAMS);
+    // Read through dreamImages() so a dream still on the pre-migration shape
+    // gets its single image folded into images[] rather than shadowed by the
+    // new cover.
+    const images = normalizeDreamImages(dream);
+    const previous = images.shift();
+
+    images.unshift(toImagePayload(result));
+    dream.images = images;
+
+    await deleteFromCloudinary(previous?.publicId);
+  } else if (files.length > 0) {
     // Uploading replaces the whole set, matching the single-image behaviour
     // this endpoint has always had.
     assertImagesPerDream(files.length);
@@ -336,8 +383,7 @@ export const deleteDream = catchAsync(async (req, res) => {
   // The board's cover is a copy of some dream's cover image, so it only
   // needs rebuilding when one of the images just deleted was the one on it.
   if (board && board.coverImage?.publicId && publicIds.includes(board.coverImage.publicId)) {
-    const fallback = await Dream.findOne({ board: board._id, isDeleted: false }).sort({ order: 1 });
-    const fallbackCover = fallback ? dreamImages(fallback)[0] : null;
+    const fallbackCover = await nextBoardCover(board._id);
     board.coverImage = fallbackCover?.url
       ? { url: fallbackCover.url, publicId: fallbackCover.publicId }
       : { url: '', publicId: '' };
@@ -347,6 +393,57 @@ export const deleteDream = catchAsync(async (req, res) => {
   await recomputeBoardProgress(dream.board);
 
   sendResponse(res, { message: 'Dream deleted successfully' });
+});
+
+/// Removes ONE image from a dream - the full-screen viewer's delete action.
+/// images[0] *is* the cover, so deleting it simply promotes the next image;
+/// there is no cover flag to repoint. Answers with the updated dream so the
+/// client can repaint from the response instead of refetching.
+export const deleteDreamImage = catchAsync(async (req, res) => {
+  const dream = await findOwnedDream(req.params.dreamId, req.user._id);
+  const { imageId } = req.params;
+  const images = normalizeDreamImages(dream);
+
+  // Matched on either identifier: images written before
+  // scripts/migrateDreamImages.js ran have no `_id` of their own, and their
+  // publicId is the only thing a client can name them by.
+  const index = images.findIndex(
+    (image) => (image._id && String(image._id) === imageId) || image.publicId === imageId
+  );
+
+  if (index === -1) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Image not found on this dream');
+  }
+
+  const [removed] = images.splice(index, 1);
+
+  dream.images = images;
+  await dream.save();
+  await dream.populate(POPULATE_AREA);
+
+  const publicId = removed?.publicId || '';
+
+  if (publicId) await deleteFromCloudinary(publicId);
+
+  const board = await VisionBoard.findById(dream.board);
+
+  // The board's cover is a copy of some dream's image, so it only needs
+  // rebuilding when the image just removed was the one it was showing.
+  if (board && publicId && board.coverImage?.publicId === publicId) {
+    // The dream is already saved, so this sees the image that has just been
+    // promoted to its cover.
+    const fallbackCover = await nextBoardCover(board._id);
+
+    board.coverImage = fallbackCover?.url
+      ? { url: fallbackCover.url, publicId: fallbackCover.publicId }
+      : { url: '', publicId: '' };
+    await board.save();
+  }
+
+  sendResponse(res, {
+    message: 'Image removed successfully',
+    data: decorateDream(dream, req.user.timezone)
+  });
 });
 
 export const reorderDreams = catchAsync(async (req, res) => {

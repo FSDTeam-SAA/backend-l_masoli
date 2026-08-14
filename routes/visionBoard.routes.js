@@ -46,6 +46,10 @@ router
 
 router.get('/:id/dreams/:dreamId/goals', dreamController.listDreamGoals);
 
+// Removes one image from a dream's images array, by that image's own id (its
+// publicId is accepted too - see deleteDreamImage).
+router.delete('/:id/dreams/:dreamId/images/:imageId', dreamController.deleteDreamImage);
+
 router
   .route('/:id/dreams/:dreamId')
   .get(dreamController.getDream)

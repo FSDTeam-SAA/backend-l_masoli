@@ -2858,7 +2858,7 @@
                 "{{dreamId}}"
               ]
             },
-            "description": "Edit the title, Dream Story or image. Replacing the image deletes the old Cloudinary asset.",
+            "description": "Edit the title, Dream Story or images. Uploading replaces the whole image set and deletes the old Cloudinary assets; send replaceCover=true with a single file to swap only the cover (images[0]) and keep the rest.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -2883,6 +2883,12 @@
                   "type": "file",
                   "description": "Optional replacement image",
                   "src": []
+                },
+                {
+                  "key": "replaceCover",
+                  "type": "text",
+                  "value": "",
+                  "description": "Optional - \"true\" swaps only the cover instead of replacing every image"
                 }
               ]
             }
@@ -2919,6 +2925,41 @@
               ]
             },
             "description": "Removes the Dream and its image. Any Goals under it are kept but unlinked, so no user work is lost."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is ok', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Dream Image",
+          "_postman_id": "req-58a",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/boards/{{boardId}}/dreams/{{dreamId}}/images/{{imageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "boards",
+                "{{boardId}}",
+                "dreams",
+                "{{dreamId}}",
+                "images",
+                "{{imageId}}"
+              ]
+            },
+            "description": "Removes ONE image from the Dream and deletes its Cloudinary asset; the Dream itself and its Goals stay. imageId is the image's own id (its publicId is accepted too, for images stored before the multi-image migration). Deleting images[0] promotes the next image to cover. Answers with the updated Dream."
           },
           "response": [],
           "event": [
