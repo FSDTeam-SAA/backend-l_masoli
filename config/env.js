@@ -61,8 +61,8 @@ const env = Object.freeze({
   ADMIN_USER_TARGET: toNumber(process.env.ADMIN_USER_TARGET, 100),
 
   SUPER_ADMIN_NAME: process.env.SUPER_ADMIN_NAME || 'Super Admin',
-  SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL || 'admin@mydreamboard.app',
-  SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD || 'Admin@1234'
+  SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL || '',
+  SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD || ''
 });
 
 export default env;
