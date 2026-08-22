@@ -15,6 +15,11 @@ router.patch('/me/avatar', upload.single('avatar'), userController.updateAvatar)
 router.delete('/me/avatar', userController.removeAvatar);
 router.get('/me/stats', userController.getMyStats);
 router.get('/me/subscription', userController.getMySubscription);
+router.patch(
+  '/me/subscription',
+  validateRequest(userValidation.updateSubscriptionSchema),
+  userController.updateMySubscription
+);
 router.get('/me/completed-goals', userController.getMyCompletedGoals);
 router.delete('/me', validateRequest(userValidation.deleteAccountSchema), userController.deleteMe);
 
