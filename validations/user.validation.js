@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paginationQuery } from './common.validation.js';
+import { SUBSCRIPTION_TIER_VALUES } from '../constants/index.js';
 
 export const updateProfileSchema = z.object({
   body: z.object({
@@ -18,6 +19,16 @@ export const notificationSettingsSchema = z.object({
     goalReminders: z.coerce.boolean().optional(),
     milestoneReminders: z.coerce.boolean().optional(),
     dailyInspiration: z.coerce.boolean().optional()
+  })
+});
+
+// PATCH /users/me/subscription. Only the target tier is accepted — the
+// backend owns source/startedAt/expiresAt so a client cannot grant itself an
+// arbitrary expiry. When real billing lands, the receipt/token from the store
+// gets validated here and `source` stops being 'manual'.
+export const updateSubscriptionSchema = z.object({
+  body: z.object({
+    tier: z.enum(SUBSCRIPTION_TIER_VALUES)
   })
 });
 
