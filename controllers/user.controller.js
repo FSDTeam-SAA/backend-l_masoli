@@ -7,7 +7,7 @@ import QueryBuilder from '../utils/QueryBuilder.js';
 import User from '../models/user.model.js';
 import Goal from '../models/goal.model.js';
 import { uploadToCloudinary, deleteFromCloudinary, toImagePayload } from '../utils/cloudinary.js';
-import { CLOUDINARY_FOLDERS, GOAL_STATUS } from '../constants/index.js';
+import { CLOUDINARY_FOLDERS, GOAL_STATUS, SUBSCRIPTION_TIER } from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { planSnapshot } from '../services/plan.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
@@ -95,6 +95,40 @@ export const getMySubscription = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     message: 'Subscription retrieved successfully',
+    data: snapshot
+  });
+});
+
+// Placeholder "subscribe" — flips the stored tier and answers with the same
+// planSnapshot GET /me/subscription returns, so the client can swap its local
+// plan state from one response. There is deliberately NO payment here yet:
+// when RevenueCat / Apple IAP / Play Billing land, this handler keeps its
+// route and response shape and gains receipt verification before the save,
+// so nothing downstream (plan gating, the app's Subscription screen) has to
+// be restructured.
+export const updateMySubscription = catchAsync(async (req, res) => {
+  const { tier } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (tier === SUBSCRIPTION_TIER.PREMIUM) {
+    const startedAt = new Date();
+    // One month, matching the $5.99/month plan the app offers. Real billing
+    // will replace this with the period the store reports.
+    const expiresAt = new Date(startedAt);
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    user.subscription = { tier, source: 'manual', startedAt, expiresAt };
+  } else {
+    user.subscription = { tier: SUBSCRIPTION_TIER.FREE, source: 'none', startedAt: null, expiresAt: null };
+  }
+
+  await user.save();
+
+  const snapshot = await planSnapshot(user);
+
+  sendResponse(res, {
+    message: tier === SUBSCRIPTION_TIER.PREMIUM ? 'Premium plan activated' : 'Switched to the Free plan',
     data: snapshot
   });
 });
