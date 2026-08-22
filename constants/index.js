@@ -121,7 +121,10 @@ export const UNLIMITED = -1;
 
 export const PLAN_LIMITS = {
   [SUBSCRIPTION_TIER.FREE]: {
-    boards: 2,
+    // One board on Free: creating a second is what the Upgrade prompt in the
+    // app gates on (client-side for immediate feedback, and enforced here via
+    // assertWithinLimit in visionBoard.controller.createBoard).
+    boards: 1,
     dreamsPerBoard: 10,
     goals: 10,
     milestonesPerGoal: 15,
