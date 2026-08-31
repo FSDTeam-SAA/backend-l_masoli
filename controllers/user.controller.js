@@ -7,7 +7,7 @@ import QueryBuilder from '../utils/QueryBuilder.js';
 import User from '../models/user.model.js';
 import Goal from '../models/goal.model.js';
 import { uploadToCloudinary, deleteFromCloudinary, toImagePayload } from '../utils/cloudinary.js';
-import { CLOUDINARY_FOLDERS, GOAL_STATUS, SUBSCRIPTION_TIER } from '../constants/index.js';
+import { BILLING_PERIOD, CLOUDINARY_FOLDERS, GOAL_STATUS, SUBSCRIPTION_TIER } from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { planSnapshot } from '../services/plan.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
@@ -107,20 +107,30 @@ export const getMySubscription = catchAsync(async (req, res) => {
 // so nothing downstream (plan gating, the app's Subscription screen) has to
 // be restructured.
 export const updateMySubscription = catchAsync(async (req, res) => {
-  const { tier } = req.body;
+  const { tier, billingPeriod } = req.body;
 
   const user = await User.findById(req.user._id);
 
   if (tier === SUBSCRIPTION_TIER.PREMIUM) {
     const startedAt = new Date();
-    // One month, matching the $5.99/month plan the app offers. Real billing
-    // will replace this with the period the store reports.
+    // Matches whichever product the app offered ($5.99/month or $49.99/year).
+    // Real billing will replace this with the period the store reports.
     const expiresAt = new Date(startedAt);
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    if (billingPeriod === BILLING_PERIOD.ANNUAL) {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
 
-    user.subscription = { tier, source: 'manual', startedAt, expiresAt };
+    user.subscription = { tier, billingPeriod, source: 'manual', startedAt, expiresAt };
   } else {
-    user.subscription = { tier: SUBSCRIPTION_TIER.FREE, source: 'none', startedAt: null, expiresAt: null };
+    user.subscription = {
+      tier: SUBSCRIPTION_TIER.FREE,
+      billingPeriod: null,
+      source: 'none',
+      startedAt: null,
+      expiresAt: null
+    };
   }
 
   await user.save();

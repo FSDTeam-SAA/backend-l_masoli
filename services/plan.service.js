@@ -63,6 +63,7 @@ export const planSnapshot = async (user) => {
   return {
     tier,
     storedTier: user.subscription?.tier || SUBSCRIPTION_TIER.FREE,
+    billingPeriod: user.subscription?.billingPeriod || null,
     source: user.subscription?.source || 'none',
     startedAt: user.subscription?.startedAt || null,
     expiresAt: user.subscription?.expiresAt || null,

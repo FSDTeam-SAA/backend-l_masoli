@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { paginationQuery } from './common.validation.js';
-import { SUBSCRIPTION_TIER_VALUES } from '../constants/index.js';
+import { BILLING_PERIOD_VALUES, SUBSCRIPTION_TIER, SUBSCRIPTION_TIER_VALUES } from '../constants/index.js';
 
 export const updateProfileSchema = z.object({
   body: z.object({
@@ -22,14 +22,21 @@ export const notificationSettingsSchema = z.object({
   })
 });
 
-// PATCH /users/me/subscription. Only the target tier is accepted — the
-// backend owns source/startedAt/expiresAt so a client cannot grant itself an
-// arbitrary expiry. When real billing lands, the receipt/token from the store
-// gets validated here and `source` stops being 'manual'.
+// PATCH /users/me/subscription. Only the target tier (and, for Premium, the
+// billing period) is accepted — the backend owns source/startedAt/expiresAt
+// so a client cannot grant itself an arbitrary expiry. When real billing
+// lands, the receipt/token from the store gets validated here and `source`
+// stops being 'manual'.
 export const updateSubscriptionSchema = z.object({
-  body: z.object({
-    tier: z.enum(SUBSCRIPTION_TIER_VALUES)
-  })
+  body: z
+    .object({
+      tier: z.enum(SUBSCRIPTION_TIER_VALUES),
+      billingPeriod: z.enum(BILLING_PERIOD_VALUES).optional()
+    })
+    .refine((data) => data.tier !== SUBSCRIPTION_TIER.PREMIUM || data.billingPeriod !== undefined, {
+      message: 'billingPeriod is required when tier is premium',
+      path: ['billingPeriod']
+    })
 });
 
 export const deleteAccountSchema = z.object({

@@ -117,6 +117,16 @@ export const SUBSCRIPTION_TIER_VALUES = Object.values(SUBSCRIPTION_TIER);
 
 export const SUBSCRIPTION_SOURCE_VALUES = ['none', 'manual', 'apple', 'google', 'stripe'];
 
+// Both periods grant the same Premium entitlement (see PLAN_LIMITS) — this
+// only distinguishes which product was purchased, for display and for the
+// product ID RevenueCat will report later.
+export const BILLING_PERIOD = {
+  MONTHLY: 'monthly',
+  ANNUAL: 'annual'
+};
+
+export const BILLING_PERIOD_VALUES = Object.values(BILLING_PERIOD);
+
 export const UNLIMITED = -1;
 
 export const PLAN_LIMITS = {
