@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import env from '../config/env.js';
 import {
+  BILLING_PERIOD_VALUES,
   ROLES,
   ROLE_VALUES,
   SUBSCRIPTION_SOURCE_VALUES,
@@ -36,6 +37,10 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: { type: Date, default: null },
     subscription: {
       tier: { type: String, enum: SUBSCRIPTION_TIER_VALUES, default: SUBSCRIPTION_TIER.FREE },
+      // Which Premium product is active (monthly vs annual) — both grant the
+      // same entitlement, this is display/product-ID metadata only. null on
+      // Free, and on Premium accounts created before this field existed.
+      billingPeriod: { type: String, enum: BILLING_PERIOD_VALUES, default: null },
       source: { type: String, enum: SUBSCRIPTION_SOURCE_VALUES, default: 'none' },
       startedAt: { type: Date, default: null },
       expiresAt: { type: Date, default: null }
