@@ -1,4 +1,5 @@
 import { StatusCodes } from 'http-status-codes';
+import dayjs from 'dayjs';
 import catchAsync from '../utils/catchAsync.js';
 import ApiError from '../utils/ApiError.js';
 import sendResponse from '../utils/sendResponse.js';
@@ -6,8 +7,15 @@ import pick from '../utils/pick.js';
 import QueryBuilder from '../utils/QueryBuilder.js';
 import User from '../models/user.model.js';
 import Goal from '../models/goal.model.js';
+import env from '../config/env.js';
 import { uploadToCloudinary, deleteFromCloudinary, toImagePayload } from '../utils/cloudinary.js';
-import { BILLING_PERIOD, CLOUDINARY_FOLDERS, GOAL_STATUS, SUBSCRIPTION_TIER } from '../constants/index.js';
+import {
+  BILLING_PERIOD,
+  CLOUDINARY_FOLDERS,
+  GOAL_STATUS,
+  SUBSCRIPTION_STATUS,
+  SUBSCRIPTION_TIER
+} from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { planSnapshot } from '../services/plan.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
@@ -99,36 +107,59 @@ export const getMySubscription = catchAsync(async (req, res) => {
   });
 });
 
-// Placeholder "subscribe" — flips the stored tier and answers with the same
-// planSnapshot GET /me/subscription returns, so the client can swap its local
-// plan state from one response. There is deliberately NO payment here yet:
-// when RevenueCat / Apple IAP / Play Billing land, this handler keeps its
-// route and response shape and gains receipt verification before the save,
-// so nothing downstream (plan gating, the app's Subscription screen) has to
-// be restructured.
+export const requireBillingTestMode = (req, res, next) => {
+  if (!env.BILLING_TEST_MODE) {
+    return next(new ApiError(StatusCodes.FORBIDDEN, 'Subscription test mode is disabled'));
+  }
+
+  return next();
+};
+
+// Test-only subscription placeholder. Real store verification replaces this
+// in Milestone 2; BILLING_TEST_MODE closes the self-grant path until then.
 export const updateMySubscription = catchAsync(async (req, res) => {
   const { tier, billingPeriod } = req.body;
+  const status =
+    req.body.status ||
+    (tier === SUBSCRIPTION_TIER.PREMIUM
+      ? SUBSCRIPTION_STATUS.ACTIVE
+      : SUBSCRIPTION_STATUS.NONE);
 
   const user = await User.findById(req.user._id);
+  const startedAt = new Date();
 
-  if (tier === SUBSCRIPTION_TIER.PREMIUM) {
-    const startedAt = new Date();
-    // Matches whichever product the app offered ($5.99/month or $49.99/year).
-    // Real billing will replace this with the period the store reports.
-    const expiresAt = new Date(startedAt);
-    if (billingPeriod === BILLING_PERIOD.ANNUAL) {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
+  if (status === SUBSCRIPTION_STATUS.TRIALING) {
+    user.subscription = {
+      tier: SUBSCRIPTION_TIER.PREMIUM,
+      status,
+      billingPeriod,
+      source: 'manual',
+      startedAt,
+      trialEndsAt: dayjs(startedAt).add(14, 'day').toDate(),
+      expiresAt: null
+    };
+  } else if (status === SUBSCRIPTION_STATUS.ACTIVE) {
+    const expiresAt = dayjs(startedAt)
+      .add(1, billingPeriod === BILLING_PERIOD.ANNUAL ? 'year' : 'month')
+      .toDate();
 
-    user.subscription = { tier, billingPeriod, source: 'manual', startedAt, expiresAt };
+    user.subscription = {
+      tier: SUBSCRIPTION_TIER.PREMIUM,
+      status,
+      billingPeriod,
+      source: 'manual',
+      startedAt,
+      trialEndsAt: null,
+      expiresAt
+    };
   } else {
     user.subscription = {
       tier: SUBSCRIPTION_TIER.FREE,
+      status: SUBSCRIPTION_STATUS.NONE,
       billingPeriod: null,
       source: 'none',
       startedAt: null,
+      trialEndsAt: null,
       expiresAt: null
     };
   }
@@ -138,7 +169,12 @@ export const updateMySubscription = catchAsync(async (req, res) => {
   const snapshot = await planSnapshot(user);
 
   sendResponse(res, {
-    message: tier === SUBSCRIPTION_TIER.PREMIUM ? 'Premium plan activated' : 'Switched to the Free plan',
+    message:
+      status === SUBSCRIPTION_STATUS.TRIALING
+        ? 'Premium trial started'
+        : status === SUBSCRIPTION_STATUS.ACTIVE
+          ? 'Premium plan activated'
+          : 'Switched to the Free plan',
     data: snapshot
   });
 });

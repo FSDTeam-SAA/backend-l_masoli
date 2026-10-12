@@ -57,6 +57,7 @@ const env = Object.freeze({
   FIREBASE_PRIVATE_KEY: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 
   ENABLE_CRON: toBoolean(process.env.ENABLE_CRON, true),
+  BILLING_TEST_MODE: toBoolean(process.env.BILLING_TEST_MODE, true),
   ADMIN_TIMEZONE: process.env.ADMIN_TIMEZONE || 'UTC',
   ADMIN_USER_TARGET: toNumber(process.env.ADMIN_USER_TARGET, 100),
 

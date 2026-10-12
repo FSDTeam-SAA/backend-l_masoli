@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { paginationQuery } from './common.validation.js';
-import { BILLING_PERIOD_VALUES, SUBSCRIPTION_TIER, SUBSCRIPTION_TIER_VALUES } from '../constants/index.js';
+import {
+  BILLING_PERIOD_VALUES,
+  SUBSCRIPTION_STATUS,
+  SUBSCRIPTION_STATUS_VALUES,
+  SUBSCRIPTION_TIER,
+  SUBSCRIPTION_TIER_VALUES
+} from '../constants/index.js';
 
 export const updateProfileSchema = z.object({
   body: z.object({
@@ -22,20 +28,50 @@ export const notificationSettingsSchema = z.object({
   })
 });
 
-// PATCH /users/me/subscription. Only the target tier (and, for Premium, the
-// billing period) is accepted — the backend owns source/startedAt/expiresAt
-// so a client cannot grant itself an arbitrary expiry. When real billing
-// lands, the receipt/token from the store gets validated here and `source`
-// stops being 'manual'.
+// PATCH /users/me/subscription. The backend owns all subscription dates; the
+// optional status keeps the original Premium activation payload compatible
+// by resolving omitted Premium statuses to `active`.
 export const updateSubscriptionSchema = z.object({
   body: z
     .object({
       tier: z.enum(SUBSCRIPTION_TIER_VALUES),
-      billingPeriod: z.enum(BILLING_PERIOD_VALUES).optional()
+      billingPeriod: z.enum(BILLING_PERIOD_VALUES).optional(),
+      status: z.enum(SUBSCRIPTION_STATUS_VALUES).optional()
     })
-    .refine((data) => data.tier !== SUBSCRIPTION_TIER.PREMIUM || data.billingPeriod !== undefined, {
-      message: 'billingPeriod is required when tier is premium',
-      path: ['billingPeriod']
+    .superRefine((data, ctx) => {
+      const status =
+        data.status ||
+        (data.tier === SUBSCRIPTION_TIER.PREMIUM
+          ? SUBSCRIPTION_STATUS.ACTIVE
+          : SUBSCRIPTION_STATUS.NONE);
+
+      const validTier =
+        (status === SUBSCRIPTION_STATUS.NONE && data.tier === SUBSCRIPTION_TIER.FREE) ||
+        (status !== SUBSCRIPTION_STATUS.NONE && data.tier === SUBSCRIPTION_TIER.PREMIUM);
+
+      if (!validTier) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'status none requires tier free; trialing or active requires tier premium',
+          path: ['status']
+        });
+      }
+
+      if (data.tier === SUBSCRIPTION_TIER.PREMIUM && data.billingPeriod === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'billingPeriod is required when tier is premium',
+          path: ['billingPeriod']
+        });
+      }
+
+      if (data.tier === SUBSCRIPTION_TIER.FREE && data.billingPeriod !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'billingPeriod is only allowed when tier is premium',
+          path: ['billingPeriod']
+        });
+      }
     })
 });
 

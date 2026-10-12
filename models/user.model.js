@@ -6,6 +6,8 @@ import {
   ROLES,
   ROLE_VALUES,
   SUBSCRIPTION_SOURCE_VALUES,
+  SUBSCRIPTION_STATUS,
+  SUBSCRIPTION_STATUS_VALUES,
   SUBSCRIPTION_TIER,
   SUBSCRIPTION_TIER_VALUES,
   USER_STATUS,
@@ -37,12 +39,14 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: { type: Date, default: null },
     subscription: {
       tier: { type: String, enum: SUBSCRIPTION_TIER_VALUES, default: SUBSCRIPTION_TIER.FREE },
+      status: { type: String, enum: SUBSCRIPTION_STATUS_VALUES, default: SUBSCRIPTION_STATUS.NONE },
       // Which Premium product is active (monthly vs annual) — both grant the
       // same entitlement, this is display/product-ID metadata only. null on
       // Free, and on Premium accounts created before this field existed.
       billingPeriod: { type: String, enum: BILLING_PERIOD_VALUES, default: null },
       source: { type: String, enum: SUBSCRIPTION_SOURCE_VALUES, default: 'none' },
       startedAt: { type: Date, default: null },
+      trialEndsAt: { type: Date, default: null },
       expiresAt: { type: Date, default: null }
     },
     notificationSettings: {
@@ -72,13 +76,32 @@ userSchema.virtual('fullName').get(function () {
 userSchema.virtual('activeTier').get(function () {
   const tier = this.subscription?.tier || SUBSCRIPTION_TIER.FREE;
 
-  if (tier === SUBSCRIPTION_TIER.FREE) return SUBSCRIPTION_TIER.FREE;
+  if (tier !== SUBSCRIPTION_TIER.PREMIUM) return SUBSCRIPTION_TIER.FREE;
+
+  if (this.resolvedSubscriptionStatus() !== SUBSCRIPTION_STATUS.ACTIVE) {
+    return SUBSCRIPTION_TIER.FREE;
+  }
 
   const expiresAt = this.subscription?.expiresAt;
-  if (expiresAt && expiresAt.getTime() < Date.now()) return SUBSCRIPTION_TIER.FREE;
+  if (expiresAt && expiresAt.getTime() <= Date.now()) return SUBSCRIPTION_TIER.FREE;
 
   return tier;
 });
+
+userSchema.methods.resolvedSubscriptionStatus = function () {
+  const tier = this.subscription?.tier || SUBSCRIPTION_TIER.FREE;
+  const storedStatus = this.subscription?.status;
+
+  if (
+    tier === SUBSCRIPTION_TIER.PREMIUM &&
+    (storedStatus == null ||
+      (storedStatus === SUBSCRIPTION_STATUS.NONE && this.$isDefault('subscription.status')))
+  ) {
+    return SUBSCRIPTION_STATUS.ACTIVE;
+  }
+
+  return storedStatus || SUBSCRIPTION_STATUS.NONE;
+};
 
 userSchema.virtual('age').get(function () {
   if (!this.dateOfBirth) return null;

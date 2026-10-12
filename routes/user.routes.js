@@ -17,6 +17,7 @@ router.get('/me/stats', userController.getMyStats);
 router.get('/me/subscription', userController.getMySubscription);
 router.patch(
   '/me/subscription',
+  userController.requireBillingTestMode,
   validateRequest(userValidation.updateSubscriptionSchema),
   userController.updateMySubscription
 );

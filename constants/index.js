@@ -115,6 +115,14 @@ export const SUBSCRIPTION_TIER = {
 
 export const SUBSCRIPTION_TIER_VALUES = Object.values(SUBSCRIPTION_TIER);
 
+export const SUBSCRIPTION_STATUS = {
+  NONE: 'none',
+  TRIALING: 'trialing',
+  ACTIVE: 'active'
+};
+
+export const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUS);
+
 export const SUBSCRIPTION_SOURCE_VALUES = ['none', 'manual', 'apple', 'google', 'stripe'];
 
 // Both periods grant the same Premium entitlement (see PLAN_LIMITS) — this
@@ -136,14 +144,16 @@ export const PLAN_LIMITS = {
     // assertWithinLimit in visionBoard.controller.createBoard).
     boards: 1,
     dreamsPerBoard: 10,
-    goals: 10,
-    milestonesPerGoal: 15,
+    goals: UNLIMITED,
+    goalsPerArea: 1,
+    milestonesPerGoal: 3,
     customAreasOfLife: 3
   },
   [SUBSCRIPTION_TIER.PREMIUM]: {
     boards: UNLIMITED,
     dreamsPerBoard: UNLIMITED,
     goals: UNLIMITED,
+    goalsPerArea: UNLIMITED,
     milestonesPerGoal: UNLIMITED,
     customAreasOfLife: UNLIMITED
   }
@@ -153,6 +163,7 @@ export const LIMIT_LABELS = {
   boards: 'dream board',
   dreamsPerBoard: 'dream on this board',
   goals: 'goal',
+  goalsPerArea: 'goal in this area of life',
   milestonesPerGoal: 'milestone on this goal',
   customAreasOfLife: 'custom area of life'
 };

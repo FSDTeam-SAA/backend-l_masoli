@@ -5,7 +5,14 @@ import Milestone from '../models/milestone.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
 import Dream from '../models/dream.model.js';
 import AreaOfLife from '../models/areaOfLife.model.js';
-import { LIMIT_LABELS, PLAN_LIMITS, SUBSCRIPTION_TIER, UNLIMITED } from '../constants/index.js';
+import env from '../config/env.js';
+import {
+  LIMIT_LABELS,
+  PLAN_LIMITS,
+  SUBSCRIPTION_STATUS,
+  SUBSCRIPTION_TIER,
+  UNLIMITED
+} from '../constants/index.js';
 
 export const limitsFor = (tier) => PLAN_LIMITS[tier] || PLAN_LIMITS[SUBSCRIPTION_TIER.FREE];
 
@@ -14,6 +21,8 @@ export const isUnlimited = (value) => value === UNLIMITED;
 const COUNTERS = {
   boards: ({ user }) => VisionBoard.countDocuments({ user: user._id, isDeleted: false }),
   goals: ({ user }) => Goal.countDocuments({ user: user._id, isDeleted: false }),
+  goalsPerArea: ({ user, scopeId }) =>
+    Goal.countDocuments({ user: user._id, areaOfLife: scopeId, isDeleted: false }),
   dreamsPerBoard: ({ scopeId }) => Dream.countDocuments({ board: scopeId, isDeleted: false }),
   milestonesPerGoal: ({ scopeId }) => Milestone.countDocuments({ goal: scopeId, isDeleted: false }),
   customAreasOfLife: ({ user }) => AreaOfLife.countDocuments({ user: user._id })
@@ -46,6 +55,13 @@ export const assertWithinLimit = async (resource, { user, scopeId }) => {
 export const planSnapshot = async (user) => {
   const tier = user.activeTier;
   const limits = limitsFor(tier);
+  const status =
+    typeof user.resolvedSubscriptionStatus === 'function'
+      ? user.resolvedSubscriptionStatus()
+      : user.subscription?.status ||
+        (user.subscription?.tier === SUBSCRIPTION_TIER.PREMIUM
+          ? SUBSCRIPTION_STATUS.ACTIVE
+          : SUBSCRIPTION_STATUS.NONE);
 
   const [boards, goals, customAreasOfLife] = await Promise.all([
     currentUsage('boards', { user }),
@@ -63,10 +79,13 @@ export const planSnapshot = async (user) => {
   return {
     tier,
     storedTier: user.subscription?.tier || SUBSCRIPTION_TIER.FREE,
+    status,
     billingPeriod: user.subscription?.billingPeriod || null,
     source: user.subscription?.source || 'none',
     startedAt: user.subscription?.startedAt || null,
+    trialEndsAt: user.subscription?.trialEndsAt || null,
     expiresAt: user.subscription?.expiresAt || null,
+    testMode: env.BILLING_TEST_MODE,
     isPremium: tier === SUBSCRIPTION_TIER.PREMIUM,
     limits,
     usage: {
@@ -74,6 +93,10 @@ export const planSnapshot = async (user) => {
       goals: describe(goals, limits.goals),
       customAreasOfLife: describe(customAreasOfLife, limits.customAreasOfLife),
       dreamsPerBoard: { limit: isUnlimited(limits.dreamsPerBoard) ? null : limits.dreamsPerBoard, unlimited: isUnlimited(limits.dreamsPerBoard) },
+      goalsPerArea: {
+        limit: isUnlimited(limits.goalsPerArea) ? null : limits.goalsPerArea,
+        unlimited: isUnlimited(limits.goalsPerArea)
+      },
       milestonesPerGoal: {
         limit: isUnlimited(limits.milestonesPerGoal) ? null : limits.milestonesPerGoal,
         unlimited: isUnlimited(limits.milestonesPerGoal)

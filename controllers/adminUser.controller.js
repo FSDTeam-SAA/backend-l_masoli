@@ -8,7 +8,12 @@ import User from '../models/user.model.js';
 import Goal from '../models/goal.model.js';
 import Milestone from '../models/milestone.model.js';
 import VisionBoard from '../models/visionBoard.model.js';
-import { ROLES, SUBSCRIPTION_TIER, USER_STATUS } from '../constants/index.js';
+import {
+  ROLES,
+  SUBSCRIPTION_STATUS,
+  SUBSCRIPTION_TIER,
+  USER_STATUS
+} from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { formatDateLabel, relativeUpdatedLabel } from '../utils/labelHelper.js';
@@ -143,8 +148,13 @@ export const updateUserSubscription = catchAsync(async (req, res) => {
 
   user.subscription = {
     tier,
+    status:
+      tier === SUBSCRIPTION_TIER.PREMIUM
+        ? SUBSCRIPTION_STATUS.ACTIVE
+        : SUBSCRIPTION_STATUS.NONE,
     source: tier === SUBSCRIPTION_TIER.PREMIUM ? 'manual' : 'none',
     startedAt: tier === SUBSCRIPTION_TIER.PREMIUM ? user.subscription?.startedAt || new Date() : null,
+    trialEndsAt: null,
     expiresAt: tier === SUBSCRIPTION_TIER.PREMIUM ? expiresAt || null : null
   };
 

@@ -114,11 +114,13 @@ export const listGoals = catchAsync(async (req, res) => {
 });
 
 export const createGoal = catchAsync(async (req, res) => {
-  await assertWithinLimit('goals', { user: req.user });
-
   const payload = pick(req.body, ['title', 'description', 'dream', 'areaOfLife', 'priority', 'targetDate']);
 
   await assertReferences(payload, req.user._id);
+  await assertWithinLimit('goalsPerArea', {
+    user: req.user,
+    scopeId: payload.areaOfLife
+  });
 
   const goal = await Goal.create({ ...payload, user: req.user._id });
   await goal.populate([POPULATE_AREA, POPULATE_PRIORITY, POPULATE_DREAM]);
@@ -174,6 +176,16 @@ export const updateGoal = catchAsync(async (req, res) => {
   const previousDream = goal.dream;
 
   await assertReferences(payload, req.user._id);
+
+  if (
+    payload.areaOfLife &&
+    String(payload.areaOfLife) !== String(goal.areaOfLife)
+  ) {
+    await assertWithinLimit('goalsPerArea', {
+      user: req.user,
+      scopeId: payload.areaOfLife
+    });
+  }
 
   if (Object.prototype.hasOwnProperty.call(req.body, 'dream')) {
     payload.dream = req.body.dream || null;
