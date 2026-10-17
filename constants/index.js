@@ -118,7 +118,8 @@ export const SUBSCRIPTION_TIER_VALUES = Object.values(SUBSCRIPTION_TIER);
 export const SUBSCRIPTION_STATUS = {
   NONE: 'none',
   TRIALING: 'trialing',
-  ACTIVE: 'active'
+  ACTIVE: 'active',
+  EXPIRED: 'expired'
 };
 
 export const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUS);
@@ -139,7 +140,8 @@ export const UNLIMITED = -1;
 
 export const PLAN_LIMITS = {
   [SUBSCRIPTION_TIER.FREE]: {
-    // One board on Free: creating a second is what the Upgrade prompt in the
+    // Trial limits retain the legacy `free` tier key. There is no permanent Free plan.
+    // One board during the trial: creating a second is what the Upgrade prompt in the
     // app gates on (client-side for immediate feedback, and enforced here via
     // assertWithinLimit in visionBoard.controller.createBoard).
     boards: 1,

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import auth from '../middlewares/auth.js';
+import requireAccess from '../middlewares/requireAccess.js';
 import validateRequest from '../middlewares/validateRequest.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as userValidation from '../validations/user.validation.js';
@@ -12,6 +13,9 @@ router
   .route('/device-token')
   .post(validateRequest(userValidation.deviceTokenSchema), notificationController.registerDeviceToken)
   .delete(validateRequest(userValidation.removeDeviceTokenSchema), notificationController.removeDeviceToken);
+
+// Device-token management remains available while notification data is locked.
+router.use(requireAccess);
 
 router.get('/', notificationController.listNotifications);
 router.get('/unread-count', notificationController.getUnreadCount);

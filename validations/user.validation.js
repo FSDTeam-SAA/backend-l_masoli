@@ -46,13 +46,14 @@ export const updateSubscriptionSchema = z.object({
           : SUBSCRIPTION_STATUS.NONE);
 
       const validTier =
+        status === SUBSCRIPTION_STATUS.EXPIRED ||
         (status === SUBSCRIPTION_STATUS.NONE && data.tier === SUBSCRIPTION_TIER.FREE) ||
         (status !== SUBSCRIPTION_STATUS.NONE && data.tier === SUBSCRIPTION_TIER.PREMIUM);
 
       if (!validTier) {
         ctx.addIssue({
           code: 'custom',
-          message: 'status none requires tier free; trialing or active requires tier premium',
+          message: 'status none requires tier free; trialing or active requires tier premium; expired allows either tier',
           path: ['status']
         });
       }
