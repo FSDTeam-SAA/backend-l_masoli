@@ -47,7 +47,7 @@ export const assertWithinLimit = async (resource, { user, scopeId }) => {
 
     throw new ApiError(
       StatusCodes.FORBIDDEN,
-      `Your free plan allows up to ${limit} ${label}${limit === 1 ? '' : 's'}. Upgrade to Premium for unlimited access`
+      `Your trial allows up to ${limit} ${label}${limit === 1 ? '' : 's'}. Upgrade to Premium for unlimited access`
     );
   }
 };
@@ -77,6 +77,7 @@ export const planSnapshot = async (user) => {
   });
 
   return {
+    accessLevel: user.accessLevel,
     tier,
     storedTier: user.subscription?.tier || SUBSCRIPTION_TIER.FREE,
     status,

@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
       status: { type: String, enum: SUBSCRIPTION_STATUS_VALUES, default: SUBSCRIPTION_STATUS.NONE },
       // Which Premium product is active (monthly vs annual) — both grant the
       // same entitlement, this is display/product-ID metadata only. null on
-      // Free, and on Premium accounts created before this field existed.
+      // locked accounts, and on Premium accounts created before this field existed.
       billingPeriod: { type: String, enum: BILLING_PERIOD_VALUES, default: null },
       source: { type: String, enum: SUBSCRIPTION_SOURCE_VALUES, default: 'none' },
       startedAt: { type: Date, default: null },
@@ -73,19 +73,30 @@ userSchema.virtual('fullName').get(function () {
   return composed || this.userName;
 });
 
-userSchema.virtual('activeTier').get(function () {
-  const tier = this.subscription?.tier || SUBSCRIPTION_TIER.FREE;
+userSchema.virtual('accessLevel').get(function () {
+  const status = this.resolvedSubscriptionStatus();
+  const now = Date.now();
 
-  if (tier !== SUBSCRIPTION_TIER.PREMIUM) return SUBSCRIPTION_TIER.FREE;
-
-  if (this.resolvedSubscriptionStatus() !== SUBSCRIPTION_STATUS.ACTIVE) {
-    return SUBSCRIPTION_TIER.FREE;
+  // TODO Milestone 2: RevenueCat webhooks set subscription statuses and handle
+  // trials that ended without a webhook update, including grace/renewal rules.
+  if (status === SUBSCRIPTION_STATUS.TRIALING) {
+    const trialEndsAt = this.subscription?.trialEndsAt;
+    return trialEndsAt && trialEndsAt.getTime() > now ? 'limited' : 'locked';
   }
 
-  const expiresAt = this.subscription?.expiresAt;
-  if (expiresAt && expiresAt.getTime() <= Date.now()) return SUBSCRIPTION_TIER.FREE;
+  if (
+    status === SUBSCRIPTION_STATUS.ACTIVE &&
+    this.subscription?.tier === SUBSCRIPTION_TIER.PREMIUM
+  ) {
+    const expiresAt = this.subscription?.expiresAt;
+    return !expiresAt || expiresAt.getTime() > now ? 'full' : 'locked';
+  }
 
-  return tier;
+  return 'locked';
+});
+
+userSchema.virtual('activeTier').get(function () {
+  return this.accessLevel === 'full' ? SUBSCRIPTION_TIER.PREMIUM : SUBSCRIPTION_TIER.FREE;
 });
 
 userSchema.methods.resolvedSubscriptionStatus = function () {
