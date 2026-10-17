@@ -7,6 +7,8 @@ import env from './config/env.js';
 import rateLimiter from './middlewares/rateLimiter.js';
 import notFound from './middlewares/notFound.js';
 import globalErrorHandler from './middlewares/globalErrorHandler.js';
+import auth from './middlewares/auth.js';
+import requireAccess from './middlewares/requireAccess.js';
 import uploadRoutes from './routes/upload.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -61,22 +63,37 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+// Gate feature data at the mount, before any read/write controller runs.
+// Profile, subscription, deletion, settings, help pages and device tokens stay accessible.
+app.use(
+  [
+    '/api/v1/users/me/stats',
+    '/api/v1/users/me/completed-goals',
+    '/api/v1/content/areas',
+    '/api/v1/content/priorities',
+    '/api/v1/content/cover-moods',
+    '/api/v1/content/collage-layouts',
+    '/api/v1/content/quotes'
+  ],
+  auth(),
+  requireAccess
+);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/settings', settingRoutes);
 app.use('/api/v1/content', contentRoutes);
-app.use('/api/v1/home', homeRoutes);
-app.use('/api/v1/goals', goalRoutes);
-app.use('/api/v1/milestones', milestoneRoutes);
-app.use('/api/v1/boards', visionBoardRoutes);
-app.use('/api/v1/dreams', dreamRoutes);
-app.use('/api/v1/progress', progressRoutes);
-app.use('/api/v1/achievements', achievementRoutes);
+app.use('/api/v1/home', auth(), requireAccess, homeRoutes);
+app.use('/api/v1/goals', auth(), requireAccess, goalRoutes);
+app.use('/api/v1/milestones', auth(), requireAccess, milestoneRoutes);
+app.use('/api/v1/boards', auth(), requireAccess, visionBoardRoutes);
+app.use('/api/v1/dreams', auth(), requireAccess, dreamRoutes);
+app.use('/api/v1/progress', auth(), requireAccess, progressRoutes);
+app.use('/api/v1/achievements', auth(), requireAccess, achievementRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/admin/dashboard', adminDashboardRoutes);
 app.use('/api/v1/admin/users', adminUserRoutes);
 app.use('/api/v1/admin/content', adminContentRoutes);
 app.use('/api/v1/admin/notifications', adminNotificationRoutes);
-app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/uploads', auth(), requireAccess, uploadRoutes);
 
 app.use(notFound);
 app.use(globalErrorHandler);

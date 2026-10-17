@@ -152,6 +152,12 @@ export const updateMySubscription = catchAsync(async (req, res) => {
       trialEndsAt: null,
       expiresAt
     };
+  } else if (status === SUBSCRIPTION_STATUS.EXPIRED) {
+    user.subscription.tier = tier;
+    user.subscription.status = status;
+    user.subscription.billingPeriod = tier === SUBSCRIPTION_TIER.PREMIUM ? billingPeriod : null;
+    user.subscription.source = 'manual';
+    user.subscription.expiresAt = startedAt;
   } else {
     user.subscription = {
       tier: SUBSCRIPTION_TIER.FREE,
@@ -174,7 +180,9 @@ export const updateMySubscription = catchAsync(async (req, res) => {
         ? 'Premium trial started'
         : status === SUBSCRIPTION_STATUS.ACTIVE
           ? 'Premium plan activated'
-          : 'Switched to the Free plan',
+          : status === SUBSCRIPTION_STATUS.EXPIRED
+            ? 'Subscription expired'
+            : 'Subscription required',
     data: snapshot
   });
 });
