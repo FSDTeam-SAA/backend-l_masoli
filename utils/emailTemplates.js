@@ -1,3 +1,5 @@
+import { buildWelcomeEmail } from '../templates/welcomeEmail.js';
+
 const layout = (title, body) => `
 <div style="font-family:Segoe UI,Helvetica,Arial,sans-serif;background:#f5f7fb;padding:32px 16px">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px">
@@ -38,13 +40,4 @@ export const passwordChangedTemplate = ({ userName }) =>
   `
   );
 
-export const welcomeTemplate = ({ userName }) =>
-  layout(
-    'Welcome to My Dream Board',
-    `
-    <p style="margin:0;font-size:14px;color:#475569;line-height:1.6">
-      Hi ${userName}, your account is verified. Create your first goal, break it into small milestones,
-      and build the vision board that keeps you inspired.
-    </p>
-  `
-  );
+export const welcomeTemplate = () => buildWelcomeEmail().html;

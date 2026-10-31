@@ -119,16 +119,22 @@ export const requireBillingTestMode = (req, res, next) => {
 // in Milestone 2; BILLING_TEST_MODE closes the self-grant path until then.
 export const updateMySubscription = catchAsync(async (req, res) => {
   const { tier, billingPeriod } = req.body;
-  const status =
-    req.body.status ||
-    (tier === SUBSCRIPTION_TIER.PREMIUM
-      ? SUBSCRIPTION_STATUS.ACTIVE
-      : SUBSCRIPTION_STATUS.NONE);
+  const expireTrial = req.body.expireTrial === true;
+  const status = expireTrial
+    ? SUBSCRIPTION_STATUS.TRIALING
+    : req.body.status ||
+      (tier === SUBSCRIPTION_TIER.PREMIUM
+        ? SUBSCRIPTION_STATUS.ACTIVE
+        : SUBSCRIPTION_STATUS.NONE);
 
   const user = await User.findById(req.user._id);
   const startedAt = new Date();
 
-  if (status === SUBSCRIPTION_STATUS.TRIALING) {
+  if (expireTrial) {
+    // Only subscription state changes; saved feature data stays untouched.
+    user.subscription.status = SUBSCRIPTION_STATUS.TRIALING;
+    user.subscription.trialEndsAt = dayjs(startedAt).subtract(1, 'minute').toDate();
+  } else if (status === SUBSCRIPTION_STATUS.TRIALING) {
     user.subscription = {
       tier: SUBSCRIPTION_TIER.PREMIUM,
       status,
@@ -176,13 +182,15 @@ export const updateMySubscription = catchAsync(async (req, res) => {
 
   sendResponse(res, {
     message:
-      status === SUBSCRIPTION_STATUS.TRIALING
-        ? 'Premium trial started'
-        : status === SUBSCRIPTION_STATUS.ACTIVE
-          ? 'Premium plan activated'
-          : status === SUBSCRIPTION_STATUS.EXPIRED
-            ? 'Subscription expired'
-            : 'Subscription required',
+      expireTrial
+        ? 'Trial ended'
+        : status === SUBSCRIPTION_STATUS.TRIALING
+          ? 'Premium trial started'
+          : status === SUBSCRIPTION_STATUS.ACTIVE
+            ? 'Premium plan activated'
+            : status === SUBSCRIPTION_STATUS.EXPIRED
+              ? 'Subscription expired'
+              : 'Subscription required',
     data: snapshot
   });
 });
