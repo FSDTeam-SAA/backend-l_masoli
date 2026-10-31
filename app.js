@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { StatusCodes } from 'http-status-codes';
+import { fileURLToPath } from 'node:url';
 import env from './config/env.js';
 import rateLimiter from './middlewares/rateLimiter.js';
 import notFound from './middlewares/notFound.js';
@@ -32,6 +33,14 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
+// A single public email asset; override Helmet's same-origin CORP for images
+// fetched by mail clients. Other routes retain the default security policy.
+app.get('/assets/email/my-dream-board-logo.png', (req, res) => {
+  res.sendFile(fileURLToPath(new URL('./public/email/my-dream-board-logo.png', import.meta.url)), {
+    maxAge: '1d',
+    headers: { 'Cross-Origin-Resource-Policy': 'cross-origin' }
+  });
+});
 app.use(
   cors({
     origin: env.CORS_ORIGINS.length > 0 ? env.CORS_ORIGINS : true,

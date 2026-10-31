@@ -15,6 +15,15 @@ const toList = (value, fallback) => {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 };
 
+// Mail transport values are deliberately strict: missing/invalid settings
+// must remain detectable by production startup validation.
+const mailSecure = (value) => {
+  if (value === undefined || value.trim() === '') return undefined;
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  return undefined;
+};
+
 const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: toNumber(process.env.PORT, 5000),
@@ -36,12 +45,16 @@ const env = Object.freeze({
   OTP_MAX_ATTEMPTS: toNumber(process.env.OTP_MAX_ATTEMPTS, 5),
   OTP_MAX_RESENDS: toNumber(process.env.OTP_MAX_RESENDS, 5),
 
-  SMTP_HOST: process.env.SMTP_HOST || '',
-  SMTP_PORT: toNumber(process.env.SMTP_PORT, 587),
-  SMTP_SECURE: toBoolean(process.env.SMTP_SECURE, false),
-  SMTP_USER: process.env.SMTP_USER || '',
-  SMTP_PASS: process.env.SMTP_PASS || '',
-  MAIL_FROM: process.env.MAIL_FROM || 'My Dream Board <no-reply@mydreamboard.app>',
+  MAIL_HOST: process.env.MAIL_HOST || '',
+  MAIL_PORT: process.env.MAIL_PORT?.trim() ? Number(process.env.MAIL_PORT) : undefined,
+  MAIL_SECURE: mailSecure(process.env.MAIL_SECURE),
+  MAIL_USER: process.env.MAIL_USER || '',
+  MAIL_PASS: process.env.MAIL_PASS || '',
+  MAIL_FROM: process.env.MAIL_FROM || 'My Dream Board <hello@mydreamboard.app>',
+  MAIL_REPLY_TO: process.env.MAIL_REPLY_TO || 'hello@mydreamboard.app',
+  APP_PUBLIC_URL: process.env.APP_PUBLIC_URL || 'https://mydreamboard.app',
+  // Blank selects the public logo route on APP_PUBLIC_URL's origin.
+  EMAIL_LOGO_URL: process.env.EMAIL_LOGO_URL || '',
 
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',

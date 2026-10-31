@@ -3,12 +3,15 @@ import env from './config/env.js';
 import connectDB from './config/db.js';
 import app from './app.js';
 import startJobs from './jobs/index.js';
+import { validateProductionMailConfiguration } from './config/mailer.js';
 
 let server;
 // macOS-এ Active Web Connections/Sockets ট্রাক রাখার জন্য Set
 const activeSockets = new Set();
 
 const bootstrap = async () => {
+  // Validate before connecting to the database, opening a port or starting jobs.
+  validateProductionMailConfiguration();
   await connectDB();
 
   // macOS Network Socket issue এড়াতে explicit "0.0.0.0" দেওয়া হয়েছে
