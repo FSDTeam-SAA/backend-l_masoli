@@ -7,7 +7,9 @@
 "scripts": {
   "predev": "sh -c 'pids=$(lsof -ti tcp:8002); if [ -n \"$pids\" ]; then kill -9 $pids || true; fi'",
   "dev": "nodemon --no-stdin server.js",
-  "start": "node server.js"
+  "start": "node server.js",
+  "email:preview": "node scripts/previewWelcomeEmail.js",
+  "email:test": "node scripts/testEmail.js"
 },
   "keywords": [
     "express",
