@@ -4,13 +4,13 @@
   "description": "My Dream Board backend API - goals, milestones, vision boards, progress analytics and admin dashboard",
   "type": "module",
   "main": "server.js",
-"scripts": {
-  "predev": "sh -c 'pids=$(lsof -ti tcp:8002); if [ -n \"$pids\" ]; then kill -9 $pids || true; fi'",
-  "dev": "nodemon --no-stdin server.js",
-  "start": "node server.js",
-  "email:preview": "node scripts/previewWelcomeEmail.js",
-  "email:test": "node scripts/testEmail.js"
-},
+  "scripts": {
+    "predev": "sh -c 'pids=$(lsof -ti tcp:8002); if [ -n \"$pids\" ]; then kill -9 $pids || true; fi'",
+    "dev": "node init && nodemon --no-stdin server.js",
+    "start": "node init && node server.js",
+    "email:preview": "node scripts/previewWelcomeEmail.js",
+    "email:test": "node scripts/testEmail.js"
+  },
   "keywords": [
     "express",
     "mongodb",
