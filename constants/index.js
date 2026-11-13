@@ -124,7 +124,7 @@ export const SUBSCRIPTION_STATUS = {
 
 export const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUS);
 
-export const SUBSCRIPTION_SOURCE_VALUES = ['none', 'manual', 'apple', 'google', 'stripe'];
+export const SUBSCRIPTION_SOURCE_VALUES = ['none', 'manual', 'test', 'apple', 'google', 'stripe', 'revenuecat'];
 
 // Both periods grant the same Premium entitlement (see PLAN_LIMITS) — this
 // only distinguishes which product was purchased, for display and for the

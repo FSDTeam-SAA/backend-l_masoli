@@ -4,6 +4,8 @@ import upload from '../middlewares/upload.js';
 import validateRequest from '../middlewares/validateRequest.js';
 import * as userController from '../controllers/user.controller.js';
 import * as userValidation from '../validations/user.validation.js';
+import rateLimiter from '../middlewares/rateLimiter.js';
+import { syncMySubscription } from '../controllers/revenuecat.controller.js';
 
 const router = Router();
 
@@ -15,6 +17,11 @@ router.patch('/me/avatar', upload.single('avatar'), userController.updateAvatar)
 router.delete('/me/avatar', userController.removeAvatar);
 router.get('/me/stats', userController.getMyStats);
 router.get('/me/subscription', userController.getMySubscription);
+router.post('/me/subscription/sync', rateLimiter({
+  windowMs: 60_000,
+  max: 10,
+  keyGenerator: (req) => String(req.user._id)
+}), syncMySubscription);
 router.patch(
   '/me/subscription',
   userController.requireBillingTestMode,

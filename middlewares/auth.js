@@ -4,6 +4,7 @@ import ApiError from '../utils/ApiError.js';
 import User from '../models/user.model.js';
 import { verifyAccessToken } from '../utils/token.js';
 import { USER_STATUS } from '../constants/index.js';
+import { refreshUserSubscription } from '../services/revenuecat.service.js';
 
 const LAST_ACTIVE_THROTTLE_MS = 5 * 60 * 1000;
 
@@ -40,6 +41,11 @@ const auth = (...allowedRoles) =>
       User.updateOne({ _id: user._id }, { lastActiveAt: new Date() }).catch(() => {});
     }
 
+    // Keep requireAccess and all existing feature gates unchanged. Explicit
+    // sync performs its own verification, avoiding a second API call here.
+    if (!(req.method === 'POST' && /^\/api\/v1\/users\/me\/subscription\/sync\/?$/.test(req.originalUrl?.split('?')[0] || ''))) {
+      await refreshUserSubscription(user);
+    }
     req.user = user;
     next();
   });

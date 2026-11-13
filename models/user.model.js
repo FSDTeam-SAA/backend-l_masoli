@@ -47,7 +47,15 @@ const userSchema = new mongoose.Schema(
       source: { type: String, enum: SUBSCRIPTION_SOURCE_VALUES, default: 'none' },
       startedAt: { type: Date, default: null },
       trialEndsAt: { type: Date, default: null },
-      expiresAt: { type: Date, default: null }
+      expiresAt: { type: Date, default: null },
+      store: { type: String, enum: ['app_store', 'play_store'], default: null },
+      isSandbox: { type: Boolean, default: false },
+      autoRenew: { type: Boolean, default: false },
+      billingIssue: { type: Boolean, default: false },
+      productId: { type: String, default: null },
+      lastSyncedAt: { type: Date, default: null },
+      lastSyncAttemptAt: { type: Date, default: null },
+      lastSyncFailedAt: { type: Date, default: null }
     },
     notificationSettings: {
       goalReminders: { type: Boolean, default: true },
@@ -77,11 +85,12 @@ userSchema.virtual('accessLevel').get(function () {
   const status = this.resolvedSubscriptionStatus();
   const now = Date.now();
 
-  // TODO Milestone 2: RevenueCat webhooks set subscription statuses and handle
-  // trials that ended without a webhook update, including grace/renewal rules.
+  // Request-local outage grace is set only after server verification failed.
+  // Stored expiry dates and the normal resolver remain authoritative otherwise.
+  const outageGrace = this.$locals.revenuecatOutageGrace === true;
   if (status === SUBSCRIPTION_STATUS.TRIALING) {
     const trialEndsAt = this.subscription?.trialEndsAt;
-    return trialEndsAt && trialEndsAt.getTime() > now ? 'limited' : 'locked';
+    return trialEndsAt && (trialEndsAt.getTime() > now || outageGrace) ? 'limited' : 'locked';
   }
 
   if (
@@ -89,7 +98,7 @@ userSchema.virtual('accessLevel').get(function () {
     this.subscription?.tier === SUBSCRIPTION_TIER.PREMIUM
   ) {
     const expiresAt = this.subscription?.expiresAt;
-    return !expiresAt || expiresAt.getTime() > now ? 'full' : 'locked';
+    return !expiresAt || expiresAt.getTime() > now || outageGrace ? 'full' : 'locked';
   }
 
   return 'locked';

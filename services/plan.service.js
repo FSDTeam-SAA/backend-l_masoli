@@ -94,12 +94,6 @@ export const planSnapshot = async (user) => {
     }
   }
 
-  // TODO Milestone 2: map RevenueCat EXPIRATION of an unconverted trial
-  // (event.period_type === 'TRIAL') to trial_ended, rather than treating it
-  // as a paid subscription_ended. Reconcile current entitlements first.
-  // https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields
-  // https://www.revenuecat.com/docs/integrations/webhooks/event-flows#trial-flows
-
   const [boards, goals, customAreasOfLife] = await Promise.all([
     currentUsage('boards', { user }),
     currentUsage('goals', { user }),
@@ -124,6 +118,10 @@ export const planSnapshot = async (user) => {
     startedAt: user.subscription?.startedAt || null,
     trialEndsAt: user.subscription?.trialEndsAt || null,
     expiresAt: user.subscription?.expiresAt || null,
+    autoRenew: user.subscription?.autoRenew ?? false,
+    store: user.subscription?.store || null,
+    isSandbox: user.subscription?.isSandbox ?? false,
+    billingIssue: user.subscription?.billingIssue ?? false,
     testMode: env.BILLING_TEST_MODE,
     isPremium: tier === SUBSCRIPTION_TIER.PREMIUM,
     limits,

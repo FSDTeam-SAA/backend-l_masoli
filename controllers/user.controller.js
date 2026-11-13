@@ -18,6 +18,7 @@ import {
 } from '../constants/index.js';
 import { userStats } from '../services/analytics.service.js';
 import { planSnapshot } from '../services/plan.service.js';
+import { refreshUserSubscription } from '../services/revenuecat.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { formatDateLabel } from '../utils/labelHelper.js';
 
@@ -99,6 +100,7 @@ export const getMyStats = catchAsync(async (req, res) => {
 });
 
 export const getMySubscription = catchAsync(async (req, res) => {
+  await refreshUserSubscription(req.user, { maxAgeMs: 15 * 60_000 });
   const snapshot = await planSnapshot(req.user);
 
   sendResponse(res, {
@@ -115,9 +117,11 @@ export const requireBillingTestMode = (req, res, next) => {
   return next();
 };
 
-// Test-only subscription placeholder. Real store verification replaces this
-// in Milestone 2; BILLING_TEST_MODE closes the self-grant path until then.
+// Test-only override. Real billing state is written by RevenueCat sync.
 export const updateMySubscription = catchAsync(async (req, res) => {
+  if (!env.BILLING_TEST_MODE) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'Subscription test mode is disabled');
+  }
   const { tier, billingPeriod } = req.body;
   const expireTrial = req.body.expireTrial === true;
   const status = expireTrial
@@ -131,15 +135,16 @@ export const updateMySubscription = catchAsync(async (req, res) => {
   const startedAt = new Date();
 
   if (expireTrial) {
-    // Only subscription state changes; saved feature data stays untouched.
+    // Mark the demo source so RC cannot erase it without a real entitlement.
     user.subscription.status = SUBSCRIPTION_STATUS.TRIALING;
+    user.subscription.source = 'test';
     user.subscription.trialEndsAt = dayjs(startedAt).subtract(1, 'minute').toDate();
   } else if (status === SUBSCRIPTION_STATUS.TRIALING) {
     user.subscription = {
       tier: SUBSCRIPTION_TIER.PREMIUM,
       status,
       billingPeriod,
-      source: 'manual',
+      source: 'test',
       startedAt,
       trialEndsAt: dayjs(startedAt).add(14, 'day').toDate(),
       expiresAt: null
@@ -153,7 +158,7 @@ export const updateMySubscription = catchAsync(async (req, res) => {
       tier: SUBSCRIPTION_TIER.PREMIUM,
       status,
       billingPeriod,
-      source: 'manual',
+      source: 'test',
       startedAt,
       trialEndsAt: null,
       expiresAt
@@ -162,14 +167,14 @@ export const updateMySubscription = catchAsync(async (req, res) => {
     user.subscription.tier = tier;
     user.subscription.status = status;
     user.subscription.billingPeriod = tier === SUBSCRIPTION_TIER.PREMIUM ? billingPeriod : null;
-    user.subscription.source = 'manual';
+    user.subscription.source = 'test';
     user.subscription.expiresAt = startedAt;
   } else {
     user.subscription = {
       tier: SUBSCRIPTION_TIER.FREE,
       status: SUBSCRIPTION_STATUS.NONE,
       billingPeriod: null,
-      source: 'none',
+      source: 'test',
       startedAt: null,
       trialEndsAt: null,
       expiresAt: null

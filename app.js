@@ -27,8 +27,13 @@ import adminContentRoutes from './routes/adminContent.routes.js';
 import adminUserRoutes from './routes/adminUser.routes.js';
 import adminDashboardRoutes from './routes/adminDashboard.routes.js';
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
+import { createRevenueCatWebhookHandler } from './services/revenuecatWebhook.service.js';
 
 const app = express();
+
+if (env.NODE_ENV === 'production' && env.BILLING_TEST_MODE) {
+  console.warn('[billing] WARNING: BILLING_TEST_MODE=true in production enables self-granted subscriptions. Disable it for real billing.');
+}
 
 app.set('trust proxy', 1);
 
@@ -47,6 +52,8 @@ app.use(
     credentials: true
   })
 );
+// Must precede JSON parsing: signature verification uses the exact wire bytes.
+app.post('/webhooks/revenuecat', express.raw({ type: 'application/json', limit: '1mb' }), createRevenueCatWebhookHandler());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
